@@ -193,6 +193,8 @@
   .h-0\.5 { height: .125rem; }
   .h-16 { height: 4rem; }
   .h-32 { height: 8rem; }
+  .h-full { height: 100%; }
+  .object-cover { object-fit: cover; }
   .mx-auto { margin-left: auto; margin-right: auto; }
   .min-w-0 { min-width: 0; }
   .shrink-0 { flex-shrink: 0; }
@@ -387,9 +389,11 @@ const RALLIES = [
   { id: 'r6', country: 'BE', title: 'Spa Six Hours Heritage Run', date: '2026-05-23', endDate: '2026-05-25', durationDays: 3, distanceKm: 500, fee: 340, currency: 'EUR' },
   { id: 'r7', country: 'BE', title: 'Brussels Cobblestone Cup', date: '2026-10-03', endDate: '2026-10-03', durationDays: 1, distanceKm: 190, fee: 85, currency: 'EUR' },
   { id: 'r8', country: 'UK', title: 'LeJog 2027 (Land’s End to John o’Groats)', date: '2027-01-08', endDate: '2027-01-11', durationDays: 4, distanceKm: 1600, fee: 1450, currency: 'GBP',
-    source: { name: 'Hero-ERA', url: 'https://www.hero-era.com/rallies/2027/01/lejog-2027' } },
+    source: { name: 'Hero-ERA', url: 'https://www.hero-era.com/rallies/2027/01/lejog-2027' },
+    imageUrl: 'https://www.hero-era.com/media/qscck1u4/lj25leg3.jpg?width=1200' },
   { id: 'r9', country: 'OTHER', title: 'Winter Trial 2027', date: '2027-01-30', endDate: '2027-01-31', durationDays: 2, distanceKm: 260, fee: 280, currency: 'EUR',
-    source: { name: 'Classic Events', url: 'https://classicevents.nl/event/winter-trial-2027/' } },
+    source: { name: 'Classic Events', url: 'https://classicevents.nl/event/winter-trial-2027/' },
+    imageUrl: 'https://classicevents.nl/wp-content/uploads/2026/02/Logo_Winter_Trial_2027.png' },
   { id: 'r10', country: 'OTHER', title: 'Classic Spring Sprint', date: '2026-05-02', endDate: '2026-05-02', durationDays: 1, distanceKm: 140, fee: 65, currency: 'EUR',
     source: { name: 'Classic Events', url: 'https://classicevents.nl/' } },
 ];
@@ -479,6 +483,7 @@ function mapSheetRowToRally(row, index) {
     location: row['Location'] || '',
     category: row['Category'] || '',
     source: { name: row['Source Name'] || 'Source', url: row['Source URL'] || '#' },
+    imageUrl: row['Image URL'] || '',
   };
 }
 
@@ -639,6 +644,83 @@ function FlagBadge({ country }) {
 }
 
 /* =========================================================================
+   VINTAGE MOTIFS — faint carved/embossed background ornaments (wire-spoke
+   wheel + wooden three-spoke steering wheel) shared by the login screen and
+   every subsequent page. Pure inline SVG, no external image dependency.
+   The "embossed" look comes from a matched pair of drop-shadows: a dark
+   shadow toward the lower-right (recessed edge) and a faint cream highlight
+   toward the upper-left (catching light), applied via CSS filter — the same
+   trick used for engraved metal / tooled leather in print design.
+   ========================================================================= */
+
+const EMBOSS_FILTER =
+  'drop-shadow(1.5px 2px 0.5px rgba(0,0,0,0.55)) drop-shadow(-1px -1px 0.5px rgba(245,239,227,0.06))';
+
+function WireSpokeWheel({ spokes = 32 }) {
+  const cx = 200, cy = 200, hub = 34, rim = 172, rimInner = 156;
+  const lines = [];
+  for (let i = 0; i < spokes; i++) {
+    const a = (i / spokes) * Math.PI * 2;
+    lines.push(
+      <line
+        key={i}
+        x1={cx + Math.cos(a) * hub} y1={cy + Math.sin(a) * hub}
+        x2={cx + Math.cos(a) * rimInner} y2={cy + Math.sin(a) * rimInner}
+        stroke="currentColor" strokeWidth="1.5"
+      />
+    );
+  }
+  return (
+    <svg viewBox="0 0 400 400" fill="none" style={{ width: '100%', height: '100%', color: 'rgb(245,239,227)', filter: EMBOSS_FILTER }}>
+      <circle cx={cx} cy={cy} r={rim} stroke="currentColor" strokeWidth="6" />
+      <circle cx={cx} cy={cy} r={rimInner} stroke="currentColor" strokeWidth="2" />
+      {lines}
+      <circle cx={cx} cy={cy} r={hub} stroke="currentColor" strokeWidth="5" />
+      <circle cx={cx} cy={cy} r={hub - 12} stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.08" />
+    </svg>
+  );
+}
+
+function WoodSteeringWheel() {
+  const cx = 200, cy = 200, rim = 168, boss = 46;
+  const spokeAngles = [90, 210, 330]; // classic three-spoke layout
+  return (
+    <svg viewBox="0 0 400 400" fill="none" style={{ width: '100%', height: '100%', color: 'rgb(245,239,227)', filter: EMBOSS_FILTER }}>
+      {/* wooden rim, laminated look via double stroke */}
+      <circle cx={cx} cy={cy} r={rim} stroke="currentColor" strokeWidth="16" />
+      <circle cx={cx} cy={cy} r={rim} stroke="currentColor" strokeWidth="2" strokeDasharray="2 6" opacity="0.5" />
+      <circle cx={cx} cy={cy} r={rim - 14} stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+      {spokeAngles.map((deg) => {
+        const a = (deg * Math.PI) / 180;
+        return (
+          <line
+            key={deg}
+            x1={cx + Math.cos(a) * boss} y1={cy + Math.sin(a) * boss}
+            x2={cx + Math.cos(a) * (rim - 10)} y2={cy + Math.sin(a) * (rim - 10)}
+            stroke="currentColor" strokeWidth="14" strokeLinecap="round"
+          />
+        );
+      })}
+      <circle cx={cx} cy={cy} r={boss} stroke="currentColor" strokeWidth="4" fill="currentColor" fillOpacity="0.1" />
+      <circle cx={cx} cy={cy} r={boss - 16} stroke="currentColor" strokeWidth="2" opacity="0.7" />
+    </svg>
+  );
+}
+
+function VintageMotifs() {
+  return (
+    <div className="fixed inset-0" style={{ pointerEvents: 'none', zIndex: -1, overflow: 'hidden' }} aria-hidden="true">
+      <div style={{ position: 'absolute', top: -110, right: -130, width: 380, height: 380, opacity: 0.05, transform: 'rotate(12deg)' }}>
+        <WireSpokeWheel />
+      </div>
+      <div style={{ position: 'absolute', bottom: -140, left: -120, width: 420, height: 420, opacity: 0.045, transform: 'rotate(-18deg)' }}>
+        <WoodSteeringWheel />
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
    AUTH SCREEN
    ========================================================================= */
 
@@ -670,8 +752,9 @@ function AuthScreen({ onLogin, onSignup }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-10 fade-in">
-      <div className="max-w-sm w-full mx-auto">
+    <div className="min-h-screen flex flex-col justify-center px-6 py-10 fade-in relative" style={{ zIndex: 1 }}>
+      <VintageMotifs />
+      <div className="max-w-sm w-full mx-auto relative" style={{ zIndex: 1 }}>
         <div className="text-center mb-10">
           <div className="text-4xl mb-3">🏁</div>
           <h1 className="font-serif text-3xl font-bold tracking-tight text-cream">Petrol Plotter</h1>
@@ -766,10 +849,21 @@ function RallyCard({ rally, index, registered, onRegister, onCancel, onGPX, onRo
   const src = rallySource(rally);
   const accent = index % 2 === 0 ? 'from-racing/90 to-racing-light/40' : 'from-crimson/90 to-crimson-light/30';
   const completed = garageMode && !isUpcoming(rally);
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasImage = !!rally.imageUrl && !imgFailed;
 
   return (
     <div className={`bg-panel rounded-2xl overflow-hidden border border-white/5 shadow-card fade-in ${completed ? 'opacity-70' : ''}`}>
-      <div className={`relative h-32 bg-gradient-to-br ${accent} checker-pattern`}>
+      <div className={`relative h-32 bg-gradient-to-br ${accent} ${hasImage ? '' : 'checker-pattern'}`}>
+        {hasImage && (
+          <img
+            src={rally.imageUrl}
+            alt={rally.title}
+            onError={() => setImgFailed(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent"></div>
         <div className="absolute top-3 left-3"><FlagBadge country={rally.country} /></div>
         {completed && (
@@ -1056,7 +1150,8 @@ function Dashboard({ user, rallies, registrations, onRegister, onCancel, onLogou
   );
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 relative" style={{ zIndex: 1 }}>
+      <VintageMotifs />
       <header className="sticky top-0 z-30 bg-charcoal/95 backdrop-blur border-b border-white/5 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl">🏁</span>
