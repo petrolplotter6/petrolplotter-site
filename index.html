@@ -394,6 +394,113 @@ const RALLIES = [
     source: { name: 'Classic Events', url: 'https://classicevents.nl/' } },
 ];
 
+/* ---- Google Sheet CMS feed ----
+   RALLIES above stays as a built-in fallback so the app always renders
+   something even if the sheet is unreachable. When SHEET_CSV_URL is filled
+   in, App fetches it on load and — if it parses successfully — replaces the
+   fallback with the live sheet data instead.
+
+   How to get the URL: open the Google Sheet → File → Share → Publish to
+   web → choose the events tab → format "Comma-separated values (.csv)" →
+   Publish. Paste the resulting URL below. */
+
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRBtfp7viGpKX6INmrBN7M3IPRh_bRlvrSpx9VPol-HP-khpVzhu4vGP7dhLVgRZVxt6ewCl1Kk-wl5/pub?output=csv';
+
+// Minimal RFC 4180 CSV parser: handles quoted fields, embedded commas,
+// escaped "" quotes, and \r\n / \n line endings. Good enough for a Sheets
+// "Publish to web" CSV export without pulling in a library.
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      row.push(field); field = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some((v) => v !== '')) rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); if (row.some((v) => v !== '')) rows.push(row); }
+  if (!rows.length) return [];
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((r) => {
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = (r[idx] || '').trim(); });
+    return obj;
+  });
+}
+
+// A sheet cell value that's blank or literally "TBD" stays a string (shown
+// as-is in the UI); anything numeric-looking becomes a real number so
+// formatting/sorting keeps working.
+function parseSheetNumber(value) {
+  if (!value || value.toUpperCase() === 'TBD') return 'TBD';
+  const n = Number(String(value).replace(/[^\d.]/g, ''));
+  return Number.isNaN(n) ? 'TBD' : n;
+}
+
+const SHEET_COUNTRY_MAP = { NL: 'NL', BE: 'BE', UK: 'UK' };
+
+function mapSheetRowToRally(row, index) {
+  const start = row['Start Date'];
+  const end = row['End Date'] || start;
+  let durationDays = 1;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+    durationDays = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
+  }
+  return {
+    id: 'sheet_' + index,
+    country: SHEET_COUNTRY_MAP[row['Country']] || 'OTHER',
+    title: row['Title'],
+    date: start,
+    endDate: end,
+    durationDays,
+    distanceKm: parseSheetNumber(row['Distance (km)']),
+    fee: parseSheetNumber(row['Entry Fee']),
+    currency: row['Currency'] || 'EUR',
+    location: row['Location'] || '',
+    category: row['Category'] || '',
+    source: { name: row['Source Name'] || 'Source', url: row['Source URL'] || '#' },
+  };
+}
+
+// Fetches and parses the published sheet. Resolves to null (never rejects)
+// on any failure — the caller always has a safe fallback to fall back to.
+async function fetchRalliesFromSheet() {
+  if (!SHEET_CSV_URL || SHEET_CSV_URL.indexOf('PASTE_YOUR') === 0) return null;
+  try {
+    const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    const mapped = rows
+      .map(mapSheetRowToRally)
+      .filter((r) => r.title && r.date);
+    return mapped.length ? mapped : null;
+  } catch (e) {
+    console.error('Could not load rallies from the Google Sheet, using built-in data instead:', e);
+    return null;
+  }
+}
+
 /* ---- Firebase-backed persistence ----
    Real accounts, shared across every device: Auth handles sign-up/sign-in,
    Firestore stores each user's profile and rally registrations. Firebase's
@@ -428,8 +535,9 @@ function formatDate(iso) {
 }
 
 function formatFee(amount, currency) {
+  if (amount === 'TBD' || amount === null || amount === undefined || amount === '') return 'TBD';
   const symbol = currency === 'GBP' ? '£' : '€';
-  return symbol + amount.toLocaleString('en-GB');
+  return symbol + Number(amount).toLocaleString('en-GB');
 }
 
 function isUpcoming(rally) {
@@ -675,15 +783,16 @@ function RallyCard({ rally, index, registered, onRegister, onCancel, onGPX, onRo
       </div>
 
       <div className="p-4">
-        <div className="flex items-center gap-1.5 text-silver text-sm mb-3">
+        <div className="flex items-center gap-1.5 text-silver text-sm mb-1">
           {Icon.clock('w-3.5 h-3.5')}
           <span>{formatDate(rally.date)}{rally.durationDays > 1 ? ` – ${formatDate(rally.endDate)}` : ''}</span>
         </div>
+        <p className="text-silver-dim text-xs mb-3">{rally.location || ' '}</p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="bg-panel2 rounded-lg py-2 px-2 text-center">
             {Icon.route('w-4 h-4 mx-auto mb-1 text-silver')}
-            <p className="text-cream text-sm font-semibold">{rally.distanceKm} km</p>
+            <p className="text-cream text-sm font-semibold">{rally.distanceKm === 'TBD' ? 'TBD' : `${rally.distanceKm} km`}</p>
           </div>
           <div className="bg-panel2 rounded-lg py-2 px-2 text-center">
             {Icon.flag('w-4 h-4 mx-auto mb-1 text-silver')}
@@ -937,13 +1046,13 @@ const TABS = [
   { key: 'profile', label: 'Profile', icon: Icon.user },
 ];
 
-function Dashboard({ user, registrations, onRegister, onCancel, onLogout, toast, setToast }) {
+function Dashboard({ user, rallies, registrations, onRegister, onCancel, onLogout, toast, setToast }) {
   const [tab, setTab] = useState('discover');
   const [roadbookRally, setRoadbookRally] = useState(null);
 
   const myRallies = useMemo(
-    () => registrations.map((reg) => RALLIES.find((r) => r.id === reg.rallyId)).filter(Boolean),
-    [registrations]
+    () => registrations.map((reg) => rallies.find((r) => r.id === reg.rallyId)).filter(Boolean),
+    [registrations, rallies]
   );
 
   return (
@@ -959,7 +1068,7 @@ function Dashboard({ user, registrations, onRegister, onCancel, onLogout, toast,
         </div>
       </header>
 
-      {tab === 'discover' && <DiscoverView rallies={RALLIES} registrations={registrations} onRegister={onRegister} />}
+      {tab === 'discover' && <DiscoverView rallies={rallies} registrations={registrations} onRegister={onRegister} />}
       {tab === 'garage' && <GarageView myRallies={myRallies} onCancel={onCancel} onGPX={downloadGPX} onRoadbook={setRoadbookRally} />}
       {tab === 'profile' && <ProfileView user={user} onLogout={onLogout} registrationCount={myRallies.length} />}
 
@@ -1009,9 +1118,10 @@ function SetupRequiredScreen() {
 }
 
 /* =========================================================================
-   ROOT APP — owns auth state (Firebase Authentication) and the live
-   registrations list (Firestore). RALLIES itself stays static mock data —
-   swap it for the Google Sheet / scraper feed later without touching auth.
+   ROOT APP — owns auth state (Firebase Authentication), the live
+   registrations list (Firestore), and the rally catalog itself (fetched
+   from the published Google Sheet, falling back to the built-in RALLIES
+   if the sheet isn't configured or unreachable).
    ========================================================================= */
 
 function App() {
@@ -1019,6 +1129,19 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true); // true until the first onAuthStateChanged fires
   const [registrations, setRegistrations] = useState([]);
   const [toast, setToast] = useState('');
+  const [rallies, setRallies] = useState(RALLIES); // instant render with built-in data
+
+  // Load rally data from the published Google Sheet, if configured. Renders
+  // the built-in RALLIES immediately either way, then swaps in the live
+  // sheet data once (if) it arrives — never blocks the first paint on a
+  // network request, and silently keeps the fallback if the fetch fails.
+  useEffect(() => {
+    let cancelled = false;
+    fetchRalliesFromSheet().then((sheetRallies) => {
+      if (!cancelled && sheetRallies) setRallies(sheetRallies);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Auth session — Firebase persists this itself (IndexedDB), so it
   // survives reloads with zero manual bookkeeping on our side.
@@ -1102,9 +1225,9 @@ function App() {
     firebase.firestore().collection(REGISTRATIONS_COLLECTION).add({
       userId: currentUser.id, rallyId, registeredAt: TODAY,
     }).catch((e) => console.error('Register failed:', e));
-    const rally = RALLIES.find((r) => r.id === rallyId);
-    setToast(`You're registered for ${rally.title}`);
-  }, [currentUser, registrations]);
+    const rally = rallies.find((r) => r.id === rallyId);
+    setToast(rally ? `You're registered for ${rally.title}` : 'Registered');
+  }, [currentUser, registrations, rallies]);
 
   const cancelRegistration = useCallback((rallyId) => {
     const reg = registrations.find((r) => r.rallyId === rallyId);
@@ -1133,6 +1256,7 @@ function App() {
   return (
     <Dashboard
       user={currentUser}
+      rallies={rallies}
       registrations={registrations}
       onRegister={register}
       onCancel={cancelRegistration}
