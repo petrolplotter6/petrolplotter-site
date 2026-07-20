@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Petrol Plotter | Classic Rally App</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏁</text></svg>" />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- React 18 + Babel standalone (JSX in-browser, no build step).
+     Note: Tailwind's CDN JIT engine was deliberately removed — its newer
+     builds rely on ES module dynamic imports internally, which fail with
+     "Cannot use import statement outside a module" when this file is
+     opened directly as file:// instead of served over http(s). Every
+     utility class below is hand-authored static CSS instead, so the page
+     has zero runtime dependency on a JIT compiler. -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<!-- Firebase (Authentication + Firestore), "compat" build on purpose:
+     these are classic UMD scripts exposing a global `firebase` object, same
+     as React/ReactDOM/Babel above. Firebase's modern v9+ "modular" SDK is
+     ESM-only and would reintroduce the exact "Cannot use import statement
+     outside a module" crash this file already fought through once — the
+     compat build sidesteps that entirely while offering the same API. -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<style>
+  /* ---------- reset (Tailwind Preflight equivalent) ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul { margin: 0; }
+  ul { padding: 0; list-style: none; }
+  button, input { font: inherit; color: inherit; background: none; border: none; padding: 0; }
+  button { cursor: pointer; -webkit-appearance: none; appearance: none; }
+  input { -webkit-appearance: none; appearance: none; }
+  a { color: inherit; text-decoration: none; }
+  svg { display: block; }
+  html, body { background: #121212; }
+  body { font-family: "Inter", sans-serif; color: rgb(245,239,227); min-height: 100vh; }
+  * { -webkit-tap-highlight-color: transparent; }
+
+  /* ---------- one-off animations / effects ---------- */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .fade-in { animation: fadeIn .35s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .shake { animation: shake .4s ease; }
+  @keyframes shake { 10%,90%{transform:translateX(-1px);} 20%,80%{transform:translateX(2px);} 30%,50%,70%{transform:translateX(-4px);} 40%,60%{transform:translateX(4px);} }
+  .checker-pattern {
+    background-image:
+      linear-gradient(45deg, rgba(0,0,0,.35) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.35) 75%),
+      linear-gradient(45deg, rgba(0,0,0,.35) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.35) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+  }
+  .spinner {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2.5px solid rgba(245,239,227,0.25); border-top-color: #F5EFE3;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  input:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px #20201F inset !important; -webkit-text-fill-color: #F5EFE3 !important; }
+
+  /* Base border utilities declared BEFORE color utilities on purpose: when
+     an element combines e.g. "border border-crimson/50", both rules have
+     equal specificity, so whichever is declared later in the stylesheet
+     wins the tie. Colors must win, so the generic border rule goes first. */
+  .border { border-width: 1px; border-style: solid; border-color: rgba(255,255,255,.1); }
+  .border-t { border-top-width: 1px; border-top-style: solid; border-color: rgba(255,255,255,.1); }
+  .border-b { border-bottom-width: 1px; border-bottom-style: solid; border-color: rgba(255,255,255,.1); }
+
+  /* ---------- design tokens (colors) ---------- */
+  .bg-charcoal { background-color: rgb(18,18,18); }
+  .bg-panel { background-color: rgb(26,26,26); }
+  .bg-panel2 { background-color: rgb(32,32,31); }
+  .bg-racing { background-color: rgb(11,70,39); }
+  .bg-crimson { background-color: rgb(139,0,0); }
+  .bg-cream { background-color: rgb(245,239,227); }
+  .text-cream { color: rgb(245,239,227); }
+  .text-crimson-light { color: rgb(173,26,26); }
+  .text-racing-light { color: rgb(20,98,56); }
+  .text-silver { color: rgb(185,178,164); }
+  .text-silver-dim { color: rgb(114,108,96); }
+  .border-crimson { border-color: rgb(139,0,0); }
+  .bg-racing\/30 { background-color: rgba(11,70,39,.3); }
+  .bg-racing\/60 { background-color: rgba(11,70,39,.6); }
+  .bg-crimson\/15 { background-color: rgba(139,0,0,.15); }
+  .bg-charcoal\/95 { background-color: rgba(18,18,18,.95); }
+  .border-racing-light\/40 { border-color: rgba(20,98,56,.4); }
+  .border-racing-light\/60 { border-color: rgba(20,98,56,.6); }
+  .border-crimson\/50 { border-color: rgba(139,0,0,.5); }
+  .text-silver-dim\/70 { color: rgba(114,108,96,.7); }
+  .bg-black\/50 { background-color: rgba(0,0,0,.5); }
+  .bg-black\/60 { background-color: rgba(0,0,0,.6); }
+  .bg-black\/70 { background-color: rgba(0,0,0,.7); }
+  .border-white\/5 { border-color: rgba(255,255,255,.05); }
+  .border-white\/10 { border-color: rgba(255,255,255,.1); }
+  .placeholder-silver-dim::placeholder { color: rgb(114,108,96); }
+  .decoration-silver-dim { text-decoration-color: rgb(114,108,96); }
+  .hover\:bg-crimson-light:hover { background-color: rgb(173,26,26); }
+  .hover\:bg-crimson\/10:hover { background-color: rgba(139,0,0,.1); }
+  .hover\:bg-white\/10:hover { background-color: rgba(255,255,255,.1); }
+  .hover\:text-cream:hover { color: rgb(245,239,227); }
+  .hover\:text-crimson-light:hover { color: rgb(173,26,26); }
+  .focus\:border-crimson:focus { border-color: rgb(139,0,0); outline: none; }
+  .focus\:outline-none:focus { outline: none; }
+
+  /* gradients (the three exact combinations used in the app) */
+  .bg-gradient-to-br.from-racing\/90.to-racing-light\/40 { background-image: linear-gradient(to bottom right, rgba(11,70,39,.9), rgba(20,98,56,.4)); }
+  .bg-gradient-to-br.from-crimson\/90.to-crimson-light\/30 { background-image: linear-gradient(to bottom right, rgba(139,0,0,.9), rgba(173,26,26,.3)); }
+  .bg-gradient-to-t.from-panel.via-transparent.to-transparent { background-image: linear-gradient(to top, rgb(26,26,26), transparent, transparent); }
+
+  /* ---------- typography ---------- */
+  .font-serif { font-family: "Playfair Display", serif; }
+  .font-sans { font-family: "Inter", sans-serif; }
+  .font-bold { font-weight: 700; }
+  .font-semibold { font-weight: 600; }
+  .font-medium { font-weight: 500; }
+  .text-\[10px\] { font-size: 10px; line-height: 1.4; }
+  .text-xs { font-size: .75rem; line-height: 1rem; }
+  .text-sm { font-size: .875rem; line-height: 1.25rem; }
+  .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+  .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+  .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+  .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+  .text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .tracking-tight { letter-spacing: -.025em; }
+  .tracking-wide { letter-spacing: .025em; }
+  .uppercase { text-transform: uppercase; }
+  .capitalize { text-transform: capitalize; }
+  .normal-case { text-transform: none; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leading-tight { line-height: 1.25; }
+  .underline { text-decoration-line: underline; }
+  .underline-offset-2 { text-underline-offset: 2px; }
+  .drop-shadow { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+
+  /* ---------- layout ---------- */
+  .flex { display: flex; }
+  .inline-flex { display: inline-flex; }
+  .grid { display: grid; }
+  .block { display: block; }
+  .grid-cols-1 { grid-template-columns: repeat(1, minmax(0,1fr)); }
+  .grid-cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .flex-1 { flex: 1 1 0%; }
+  .flex-col { flex-direction: column; }
+  .items-center { align-items: center; }
+  .items-end { align-items: flex-end; }
+  .items-start { align-items: flex-start; }
+  .items-stretch { align-items: stretch; }
+  .justify-between { justify-content: space-between; }
+  .justify-center { justify-content: center; }
+  .relative { position: relative; }
+  .absolute { position: absolute; }
+  .fixed { position: fixed; }
+  .sticky { position: sticky; }
+  .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+  .top-0 { top: 0; }
+  .top-3 { top: .75rem; }
+  .top-4 { top: 1rem; }
+  .top-\[64px\] { top: 64px; }
+  .bottom-0 { bottom: 0; }
+  .bottom-3 { bottom: .75rem; }
+  .left-0 { left: 0; }
+  .left-1\/2 { left: 50%; }
+  .left-3 { left: .75rem; }
+  .right-0 { right: 0; }
+  .right-3 { right: .75rem; }
+  .-translate-x-1\/2 { transform: translateX(-50%); }
+  .min-h-screen { min-height: 100vh; }
+  .min-h-\[44px\] { min-height: 44px; }
+  .min-h-\[56px\] { min-height: 56px; }
+  .max-w-sm { max-width: 24rem; }
+  .max-w-\[92\%\] { max-width: 92%; }
+  .max-h-\[85vh\] { max-height: 85vh; }
+  .w-full { width: 100%; }
+  .w-3 { width: .75rem; } .h-3 { height: .75rem; }
+  .w-3\.5 { width: .875rem; } .h-3\.5 { height: .875rem; }
+  .w-4 { width: 1rem; } .h-4 { height: 1rem; }
+  .w-5 { width: 1.25rem; } .h-5 { height: 1.25rem; }
+  .w-8 { width: 2rem; } .h-8 { height: 2rem; }
+  .w-11 { width: 2.75rem; } .h-11 { height: 2.75rem; }
+  .w-14 { width: 3.5rem; } .h-14 { height: 3.5rem; }
+  .h-0\.5 { height: .125rem; }
+  .h-16 { height: 4rem; }
+  .h-32 { height: 8rem; }
+  .mx-auto { margin-left: auto; margin-right: auto; }
+  .min-w-0 { min-width: 0; }
+  .shrink-0 { flex-shrink: 0; }
+  .overflow-hidden { overflow: hidden; }
+  .overflow-x-auto { overflow-x: auto; }
+  .overflow-y-auto { overflow-y: auto; }
+  .z-20 { z-index: 20; }
+  .z-30 { z-index: 30; }
+  .z-\[90\] { z-index: 90; }
+  .z-\[100\] { z-index: 100; }
+  @media (min-width: 640px) {
+    .sm\:items-center { align-items: center; }
+    .sm\:max-w-md { max-width: 28rem; }
+    .sm\:rounded-2xl { border-radius: 1rem; }
+  }
+
+  /* ---------- spacing ---------- */
+  .gap-1 { gap: .25rem; }
+  .gap-1\.5 { gap: .375rem; }
+  .gap-2 { gap: .5rem; }
+  .gap-3 { gap: .75rem; }
+  .gap-4 { gap: 1rem; }
+  .mb-1 { margin-bottom: .25rem; }
+  .mb-1\.5 { margin-bottom: .375rem; }
+  .mb-2 { margin-bottom: .5rem; }
+  .mb-3 { margin-bottom: .75rem; }
+  .mb-4 { margin-bottom: 1rem; }
+  .mb-5 { margin-bottom: 1.25rem; }
+  .mb-6 { margin-bottom: 1.5rem; }
+  .mb-8 { margin-bottom: 2rem; }
+  .mb-10 { margin-bottom: 2.5rem; }
+  .mt-2 { margin-top: .5rem; }
+  .mt-3 { margin-top: .75rem; }
+  .mt-6 { margin-top: 1.5rem; }
+  .-mt-1 { margin-top: -.25rem; }
+  .-mr-2 { margin-right: -.5rem; }
+  .p-1 { padding: .25rem; }
+  .p-4 { padding: 1rem; }
+  .p-5 { padding: 1.25rem; }
+  .px-2 { padding-left: .5rem; padding-right: .5rem; }
+  .px-3 { padding-left: .75rem; padding-right: .75rem; }
+  .px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .py-1 { padding-top: .25rem; padding-bottom: .25rem; }
+  .py-2 { padding-top: .5rem; padding-bottom: .5rem; }
+  .py-2\.5 { padding-top: .625rem; padding-bottom: .625rem; }
+  .py-3 { padding-top: .75rem; padding-bottom: .75rem; }
+  .py-3\.5 { padding-top: .875rem; padding-bottom: .875rem; }
+  .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+  .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+  .py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+  .py-16 { padding-top: 4rem; padding-bottom: 4rem; }
+  .pt-2 { padding-top: .5rem; }
+  .pt-4 { padding-top: 1rem; }
+  .pt-5 { padding-top: 1.25rem; }
+  .pb-3 { padding-bottom: .75rem; }
+  .pb-4 { padding-bottom: 1rem; }
+  .pb-6 { padding-bottom: 1.5rem; }
+  .pb-24 { padding-bottom: 6rem; }
+  .pb-\[env\(safe-area-inset-bottom\)\] { padding-bottom: env(safe-area-inset-bottom); }
+  .space-y-2 > * + * { margin-top: .5rem; }
+  .space-y-3 > * + * { margin-top: .75rem; }
+  .space-y-4 > * + * { margin-top: 1rem; }
+
+  /* ---------- borders / effects ---------- */
+  .rounded-lg { border-radius: .5rem; }
+  .rounded-xl { border-radius: .75rem; }
+  .rounded-2xl { border-radius: 1rem; }
+  .rounded-t-2xl { border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
+  .rounded-full { border-radius: 9999px; }
+  .backdrop-blur { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .backdrop-blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .shadow-card { box-shadow: 0 8px 24px -8px rgba(0,0,0,.6); }
+  .opacity-70 { opacity: .7; }
+  .disabled\:opacity-70:disabled { opacity: .7; }
+  .transition-all { transition-property: all; transition-duration: .15s; transition-timing-function: cubic-bezier(.4,0,.2,1); }
+  .transition-colors { transition-property: color, background-color, border-color; transition-duration: .15s; transition-timing-function: cubic-bezier(.4,0,.2,1); }
+  .active\:scale-\[0\.98\]:active { transform: scale(.98); }
+</style>
+</head>
+<body class="font-sans bg-charcoal text-cream min-h-screen">
+<div id="root"></div>
+
+<!-- Watchdog: runs before React/Babel are even guaranteed to have loaded.
+     If a CDN script is blocked (network/firewall/ad-blocker) or a runtime
+     error slips past everything else, #root would otherwise stay an empty
+     div with zero explanation. This renders a visible, actionable message
+     instead of a blank page, and gets out of the way the moment React
+     successfully mounts. -->
+<script>
+  (function () {
+    function showFallback(reason) {
+      var root = document.getElementById('root');
+      if (!root || root.children.length > 0) return; // React already mounted, don't clobber it
+      root.innerHTML =
+        '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,sans-serif;background:#121212;color:#F5EFE3;">' +
+        '<div style="max-width:380px;text-align:center;">' +
+        '<div style="font-size:36px;margin-bottom:12px;">&#9888;&#65039;</div>' +
+        '<h1 style="font-size:18px;font-weight:700;margin-bottom:8px;">Petrol Plotter couldn’t start</h1>' +
+        '<p style="font-size:14px;color:#B9B2A4;line-height:1.5;margin-bottom:12px;">' + reason + '</p>' +
+        '<p style="font-size:12px;color:#726C60;">Open the browser console (F12) for the full error, or try opening this file in a different browser.</p>' +
+        '</div></div>';
+    }
+    window.addEventListener('error', function (e) {
+      if (e.target && e.target !== window && e.target.tagName === 'SCRIPT') {
+        showFallback('A required script failed to load (' + (e.target.src || 'unknown') + '). Check your internet connection — this app loads React, Firebase and Babel from a CDN and needs network access the first time.');
+      } else {
+        showFallback('A script error occurred: ' + (e.message || 'unknown error') + '.');
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function (e) {
+      showFallback('An unexpected error occurred: ' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '.');
+    });
+    setTimeout(function () {
+      showFallback('The app did not finish loading in time. This usually means a CDN script (React, Firebase or Babel) was blocked.');
+    }, 6000);
+  })();
+</script>
+
+<!-- Firebase project config. REQUIRED — the app cannot start without this.
+     Get these values from the Firebase console: Project settings (gear
+     icon) → General → "Your apps" → the web app (</>) → SDK setup and
+     configuration → Config. Paste the object it gives you over the
+     placeholder below. Full step-by-step setup instructions were given in
+     chat alongside this file.
+     Note: these values are safe to embed in client-side code — Firebase's
+     web config is a public identifier, not a secret. Access control is
+     enforced separately by Firestore Security Rules (also provided in
+     chat), not by hiding this config. -->
+<script>
+  window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyB4MZIUXfq1xznsm5qokIeMGccvk5XPw1w",
+    authDomain: "petrolplotter6.firebaseapp.com",
+    projectId: "petrolplotter6",
+    storageBucket: "petrolplotter6.firebasestorage.app",
+    messagingSenderId: "189012269639",
+    appId: "1:189012269639:web:4272bd04e72d40714b2f62",
+    measurementId: "G-S3MJZTVT3J",
+  };
+
+  // Detect the untouched placeholder so we can show a friendly setup
+  // screen instead of a cryptic Firebase error when the config is missing.
+  window.__FIREBASE_CONFIGURED__ = window.FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
+
+  if (window.__FIREBASE_CONFIGURED__) {
+    try {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    } catch (e) {
+      console.error('Firebase init failed:', e);
+      window.__FIREBASE_CONFIGURED__ = false;
+      window.__FIREBASE_INIT_ERROR__ = e.message || String(e);
+    }
+  }
+</script>
+
+<!-- App source: type="text/plain" on purpose, NOT "text/babel". Babel
+     Standalone's auto-scanner would otherwise pick this up and transform it
+     using its default JSX runtime, which recent Babel versions default to
+     "automatic" — that injects `import { jsx as _jsx } from "react/jsx-runtime"`
+     into the output, and Babel's script-injection step (appendChild) then
+     throws "Cannot use import statement outside a module" because the
+     injected script isn't type="module". The bootstrap script below runs
+     the transform manually with runtime explicitly forced to "classic",
+     which compiles JSX to plain React.createElement(...) calls instead —
+     no import statements anywhere in the output. -->
+<script type="text/plain" id="app-source">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+/* =========================================================================
+   MOCK DATA CONTROLLER
+   Separated from UI. Everything the app needs — rallies, seed users,
+   seed registrations — lives here. Swap this block for real API calls
+   later without touching a single component.
+   ========================================================================= */
+
+const TODAY = '2026-07-19'; // app "current date" — used to compute upcoming vs completed
+
+const COUNTRIES = {
+  NL: { label: 'NL', flag: '🇳🇱', name: 'Netherlands', source: { name: 'DHRC Kalender', url: 'https://www.dhrc.nl/kalender/' } },
+  BE: { label: 'BE', flag: '🇧🇪', name: 'Belgium', source: { name: 'CRRT Kalender', url: 'https://crrt.be/kalender/' } },
+  UK: { label: 'EN', flag: '🇬🇧', name: 'England', source: { name: 'Hero-ERA', url: 'https://www.hero-era.com/rallies/2027/01/lejog-2027' } },
+  OTHER: { label: 'Other', flag: '🌍', name: 'International', source: { name: 'Classic Events', url: 'https://classicevents.nl/event/winter-trial-2027/' } },
+};
+
+const RALLIES = [
+  { id: 'r1', country: 'NL', title: 'Zuiderzee Classic', date: '2026-08-15', endDate: '2026-08-15', durationDays: 1, distanceKm: 220, fee: 95, currency: 'EUR' },
+  { id: 'r2', country: 'NL', title: 'DHRC Herfstrit', date: '2026-10-04', endDate: '2026-10-04', durationDays: 1, distanceKm: 175, fee: 70, currency: 'EUR' },
+  { id: 'r3', country: 'NL', title: 'Veluwe Classic Trophy', date: '2026-06-06', endDate: '2026-06-07', durationDays: 2, distanceKm: 340, fee: 160, currency: 'EUR' },
+  { id: 'r4', country: 'NL', title: 'DHRC Voorjaarsrit', date: '2026-04-18', endDate: '2026-04-18', durationDays: 1, distanceKm: 150, fee: 60, currency: 'EUR' },
+  { id: 'r5', country: 'BE', title: 'Ardennes Classic Rally', date: '2026-09-12', endDate: '2026-09-13', durationDays: 2, distanceKm: 410, fee: 220, currency: 'EUR' },
+  { id: 'r6', country: 'BE', title: 'Spa Six Hours Heritage Run', date: '2026-05-23', endDate: '2026-05-25', durationDays: 3, distanceKm: 500, fee: 340, currency: 'EUR' },
+  { id: 'r7', country: 'BE', title: 'Brussels Cobblestone Cup', date: '2026-10-03', endDate: '2026-10-03', durationDays: 1, distanceKm: 190, fee: 85, currency: 'EUR' },
+  { id: 'r8', country: 'UK', title: 'LeJog 2027 (Land’s End to John o’Groats)', date: '2027-01-08', endDate: '2027-01-11', durationDays: 4, distanceKm: 1600, fee: 1450, currency: 'GBP',
+    source: { name: 'Hero-ERA', url: 'https://www.hero-era.com/rallies/2027/01/lejog-2027' } },
+  { id: 'r9', country: 'OTHER', title: 'Winter Trial 2027', date: '2027-01-30', endDate: '2027-01-31', durationDays: 2, distanceKm: 260, fee: 280, currency: 'EUR',
+    source: { name: 'Classic Events', url: 'https://classicevents.nl/event/winter-trial-2027/' } },
+  { id: 'r10', country: 'OTHER', title: 'Classic Spring Sprint', date: '2026-05-02', endDate: '2026-05-02', durationDays: 1, distanceKm: 140, fee: 65, currency: 'EUR',
+    source: { name: 'Classic Events', url: 'https://classicevents.nl/' } },
+];
+
+/* ---- Firebase-backed persistence ----
+   Real accounts, shared across every device: Auth handles sign-up/sign-in,
+   Firestore stores each user's profile and rally registrations. Firebase's
+   own session persistence (IndexedDB under the hood) survives reloads on
+   its own, so there's no manual localStorage/session-key bookkeeping here
+   anymore — onAuthStateChanged below is the single source of truth. */
+
+const USERS_COLLECTION = 'users';
+const REGISTRATIONS_COLLECTION = 'registrations';
+
+// Firebase auth error codes → friendly, human copy for the AuthScreen.
+function mapAuthError(error) {
+  const code = error && error.code;
+  switch (code) {
+    case 'auth/invalid-email': return 'That email address doesn’t look right.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential': return 'Incorrect email or password. Please try again.';
+    case 'auth/email-already-in-use': return 'An account with this email already exists.';
+    case 'auth/weak-password': return 'Password should be at least 6 characters.';
+    case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
+    case 'auth/network-request-failed': return 'Network error — check your internet connection.';
+    default: return (error && error.message) || 'Something went wrong. Please try again.';
+  }
+}
+
+/* ---------------------------- formatting helpers ---------------------------- */
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatFee(amount, currency) {
+  const symbol = currency === 'GBP' ? '£' : '€';
+  return symbol + amount.toLocaleString('en-GB');
+}
+
+function isUpcoming(rally) {
+  return rally.date >= TODAY;
+}
+
+function rallySource(rally) {
+  return rally.source || COUNTRIES[rally.country].source;
+}
+
+/* ---------------------------- mock GPX + roadbook ---------------------------- */
+
+const COUNTRY_ORIGIN = {
+  NL: [52.1, 5.3], BE: [50.6, 4.7], UK: [52.5, -1.9], OTHER: [48.4, 7.2],
+};
+
+function generateGPX(rally) {
+  const [lat, lon] = COUNTRY_ORIGIN[rally.country];
+  const pts = [0, 0.4, 0.8, 1].map((f, i) => {
+    const jLat = (lat + f * 0.6 + Math.sin(i) * 0.05).toFixed(5);
+    const jLon = (lon + f * 0.8 + Math.cos(i) * 0.05).toFixed(5);
+    return `  <wpt lat="${jLat}" lon="${jLon}"><name>${i === 0 ? 'Start' : i === 3 ? 'Finish' : 'Checkpoint ' + i}</name></wpt>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Petrol Plotter (mock)" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${rally.title}</name></metadata>\n${pts}\n</gpx>`;
+}
+
+function downloadGPX(rally) {
+  const blob = new Blob([generateGPX(rally)], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = rally.title.replace(/[^\w]+/g, '_') + '.gpx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function generateRoadbook(rally) {
+  const legs = Math.max(3, rally.durationDays * 2);
+  const perLeg = Math.round(rally.distanceKm / legs);
+  const notes = ['Fuel stop advised', 'Scenic detour, reduced speed', 'Photo control point', 'Regularity section', 'Lunch halt', 'Technical inspection'];
+  return Array.from({ length: legs }, (_, i) => ({
+    leg: i + 1,
+    label: i === 0 ? 'Départ' : i === legs - 1 ? 'Arrivée' : `Leg ${i + 1}`,
+    km: perLeg,
+    note: notes[i % notes.length],
+  }));
+}
+
+/* =========================================================================
+   ICONS (inline SVG, no icon-font dependency)
+   ========================================================================= */
+
+const Icon = {
+  compass: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6 6-2z" strokeLinejoin="round"/></svg>,
+  garage: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 21V9l9-6 9 6v12" strokeLinejoin="round"/><path d="M7 21v-7h10v7" strokeLinejoin="round"/></svg>,
+  user: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c1.6-3.6 4.4-5.4 7.5-5.4s5.9 1.8 7.5 5.4" strokeLinecap="round"/></svg>,
+  route: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M5 17c0-6 2-8 8-8h1a4 4 0 000-8" strokeLinecap="round"/></svg>,
+  book: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 5.5A2.5 2.5 0 016.5 3H20v16H6.5A2.5 2.5 0 004 16.5v-11z"/><path d="M4 16.5A2.5 2.5 0 016.5 14H20" /></svg>,
+  flag: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M5 21V4" strokeLinecap="round"/><path d="M5 4h13l-3 4 3 4H5" strokeLinejoin="round"/></svg>,
+  clock: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" strokeLinecap="round"/></svg>,
+  coin: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.2 1.1-2 2.5-2s2.5.7 2.5 2-1.1 1.6-2.5 2-2.5.8-2.5 2 1.1 2 2.5 2 2.5-.8 2.5-2" strokeLinecap="round"/></svg>,
+  check: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  close: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round"/></svg>,
+  chevronDown: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  logout: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" strokeLinecap="round"/><path d="M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  external: (c) => <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 4h6v6M20 4L10 14" strokeLinecap="round" strokeLinejoin="round"/><path d="M18 13v5a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h5" strokeLinecap="round"/></svg>,
+};
+
+/* =========================================================================
+   SHARED UI PRIMITIVES
+   ========================================================================= */
+
+function Toast({ message, onDone }) {
+  useEffect(() => {
+    if (!message) return;
+    const t = setTimeout(onDone, 2600);
+    return () => clearTimeout(t);
+  }, [message]);
+  if (!message) return null;
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] fade-in max-w-[92%]">
+      <div className="flex items-center gap-2 bg-racing text-cream px-4 py-3 rounded-xl shadow-card border border-racing-light/60">
+        <span className="shrink-0">{Icon.check('w-4 h-4')}</span>
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+    </div>
+  );
+}
+
+function FlagBadge({ country }) {
+  const c = COUNTRIES[country];
+  return (
+    <span className="inline-flex items-center gap-1 bg-black/50 backdrop-blur px-2 py-1 rounded-full text-xs font-semibold border border-white/10">
+      <span>{c.flag}</span><span>{c.label}</span>
+    </span>
+  );
+}
+
+/* =========================================================================
+   AUTH SCREEN
+   ========================================================================= */
+
+function AuthScreen({ onLogin, onSignup }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [form, setForm] = useState({ email: '', password: '', name: '', carModel: '', carYear: '' });
+  const [status, setStatus] = useState('idle'); // idle | loading | error
+  const [errorMsg, setErrorMsg] = useState('');
+
+  function update(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    setStatus('loading');
+    setErrorMsg('');
+    // No artificial delay here anymore — the real Firebase network call
+    // provides its own natural loading time. On success, App's
+    // onAuthStateChanged listener flips currentUser and this screen
+    // unmounts on its own; we only need to handle the failure case here.
+    const res = mode === 'login'
+      ? await onLogin(form.email.trim(), form.password)
+      : await onSignup(form);
+    if (!res.ok) {
+      setStatus('error');
+      setErrorMsg(res.error);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col justify-center px-6 py-10 fade-in">
+      <div className="max-w-sm w-full mx-auto">
+        <div className="text-center mb-10">
+          <div className="text-4xl mb-3">🏁</div>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-cream">Petrol Plotter</h1>
+          <p className="text-silver text-sm mt-2">Classic rallies across NL · BE · EN</p>
+        </div>
+
+        <div className="flex bg-panel rounded-xl p-1 mb-6 border border-white/5">
+          {['login', 'signup'].map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); setStatus('idle'); setErrorMsg(''); }}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize transition-colors min-h-[44px] ${mode === m ? 'bg-racing text-cream' : 'text-silver'}`}
+            >
+              {m === 'login' ? 'Log In' : 'Sign Up'}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={submit} className={`space-y-4 ${status === 'error' ? 'shake' : ''}`}>
+          <div>
+            <label className="block text-xs uppercase tracking-wide text-silver-dim mb-1.5">Email</label>
+            <input
+              type="email" required value={form.email}
+              onChange={(e) => update('email', e.target.value)}
+              placeholder="you@example.com"
+              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wide text-silver-dim mb-1.5">Password</label>
+            <input
+              type="password" required value={form.password}
+              onChange={(e) => update('password', e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+            />
+          </div>
+
+          {mode === 'signup' && (
+            <div className="pt-2 border-t border-white/5">
+              <p className="text-xs uppercase tracking-wide text-silver-dim mb-3 mt-3">Driver / Navigator Profile <span className="normal-case text-silver-dim/70">(optional)</span></p>
+              <div className="space-y-3">
+                <input
+                  type="text" value={form.name} onChange={(e) => update('name', e.target.value)}
+                  placeholder="Name"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                />
+                <input
+                  type="text" value={form.carModel} onChange={(e) => update('carModel', e.target.value)}
+                  placeholder="Classic Car Model (e.g. Jaguar E-Type)"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                />
+                <input
+                  type="text" inputMode="numeric" value={form.carYear} onChange={(e) => update('carYear', e.target.value)}
+                  placeholder="Year (e.g. 1966)"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                />
+              </div>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="bg-crimson/15 border border-crimson/50 text-cream text-sm rounded-lg px-4 py-3">
+              {errorMsg}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={status === 'loading'}
+            className="w-full bg-crimson hover:bg-crimson-light active:scale-[0.98] transition-all text-cream font-semibold rounded-lg py-3.5 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-70"
+          >
+            {status === 'loading' ? (<><span className="spinner"></span><span>{mode === 'login' ? 'Signing in…' : 'Creating account…'}</span></>) : (mode === 'login' ? 'Log In' : 'Create Account')}
+          </button>
+        </form>
+
+        <p className="text-center text-xs text-silver-dim mt-6">
+          New here? Switch to Sign Up above to create your own account.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   RALLY CARD
+   ========================================================================= */
+
+function RallyCard({ rally, index, registered, onRegister, onCancel, onGPX, onRoadbook, garageMode }) {
+  const c = COUNTRIES[rally.country];
+  const src = rallySource(rally);
+  const accent = index % 2 === 0 ? 'from-racing/90 to-racing-light/40' : 'from-crimson/90 to-crimson-light/30';
+  const completed = garageMode && !isUpcoming(rally);
+
+  return (
+    <div className={`bg-panel rounded-2xl overflow-hidden border border-white/5 shadow-card fade-in ${completed ? 'opacity-70' : ''}`}>
+      <div className={`relative h-32 bg-gradient-to-br ${accent} checker-pattern`}>
+        <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent"></div>
+        <div className="absolute top-3 left-3"><FlagBadge country={rally.country} /></div>
+        {completed && (
+          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur text-cream text-[10px] font-bold tracking-wide uppercase px-2 py-1 rounded-full border border-white/10">
+            Completed
+          </div>
+        )}
+        <div className="absolute bottom-3 left-3 right-3">
+          <h3 className="font-serif text-lg font-bold text-cream leading-tight drop-shadow">{rally.title}</h3>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-center gap-1.5 text-silver text-sm mb-3">
+          {Icon.clock('w-3.5 h-3.5')}
+          <span>{formatDate(rally.date)}{rally.durationDays > 1 ? ` – ${formatDate(rally.endDate)}` : ''}</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="bg-panel2 rounded-lg py-2 px-2 text-center">
+            {Icon.route('w-4 h-4 mx-auto mb-1 text-silver')}
+            <p className="text-cream text-sm font-semibold">{rally.distanceKm} km</p>
+          </div>
+          <div className="bg-panel2 rounded-lg py-2 px-2 text-center">
+            {Icon.flag('w-4 h-4 mx-auto mb-1 text-silver')}
+            <p className="text-cream text-sm font-semibold">{rally.durationDays} {rally.durationDays === 1 ? 'Day' : 'Days'}</p>
+          </div>
+          <div className="bg-panel2 rounded-lg py-2 px-2 text-center">
+            {Icon.coin('w-4 h-4 mx-auto mb-1 text-silver')}
+            <p className="text-cream text-sm font-semibold">{formatFee(rally.fee, rally.currency)}</p>
+          </div>
+        </div>
+
+        <a
+          href={src.url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-silver hover:text-cream mb-4 underline decoration-silver-dim underline-offset-2"
+        >
+          {src.name} {Icon.external('w-3 h-3')}
+        </a>
+
+        {!garageMode && (
+          <button
+            onClick={() => onRegister(rally.id)}
+            disabled={registered}
+            className={`w-full rounded-lg py-3 min-h-[44px] font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+              registered ? 'bg-racing/30 text-silver border border-racing-light/40' : 'bg-crimson hover:bg-crimson-light text-cream'
+            }`}
+          >
+            {registered ? (<>{Icon.check('w-4 h-4')}<span>Registered</span></>) : 'Register for Rally'}
+          </button>
+        )}
+
+        {garageMode && (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => onGPX(rally)}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-panel2 hover:bg-white/10 border border-white/10 rounded-lg py-2.5 min-h-[44px] text-xs font-semibold text-cream active:scale-[0.98] transition-all"
+              >
+                {Icon.route('w-4 h-4')} GPX Route
+              </button>
+              <button
+                onClick={() => onRoadbook(rally)}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-panel2 hover:bg-white/10 border border-white/10 rounded-lg py-2.5 min-h-[44px] text-xs font-semibold text-cream active:scale-[0.98] transition-all"
+              >
+                {Icon.book('w-4 h-4')} Roadbook
+              </button>
+            </div>
+            <button
+              onClick={() => onCancel(rally.id)}
+              className="text-xs text-silver-dim hover:text-crimson-light py-1 min-h-[44px] transition-colors"
+            >
+              Cancel registration
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   ROADBOOK MODAL
+   ========================================================================= */
+
+function RoadbookModal({ rally, onClose }) {
+  if (!rally) return null;
+  const legs = generateRoadbook(rally);
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
+      <div
+        className="bg-panel w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto border border-white/10 shadow-card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-panel px-5 pt-5 pb-4 border-b border-white/5 flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-silver-dim mb-1">Digital Roadbook</p>
+            <h3 className="font-serif text-xl font-bold text-cream">{rally.title}</h3>
+          </div>
+          <button onClick={onClose} className="w-11 h-11 flex items-center justify-center text-silver hover:text-cream -mr-2 -mt-1">
+            {Icon.close('w-5 h-5')}
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-2">
+          {legs.map((leg) => (
+            <div key={leg.leg} className="flex items-center gap-3 bg-panel2 rounded-lg px-3 py-3">
+              <div className="w-8 h-8 rounded-full bg-racing/60 flex items-center justify-center text-xs font-bold text-cream shrink-0">{leg.leg}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-cream text-sm font-semibold">{leg.label}</p>
+                <p className="text-silver-dim text-xs">{leg.note}</p>
+              </div>
+              <p className="text-silver text-sm font-medium shrink-0">{leg.km} km</p>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 pb-6 pt-2">
+          <button onClick={onClose} className="w-full bg-panel2 border border-white/10 rounded-lg py-3 min-h-[44px] text-cream font-semibold text-sm">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   DISCOVER VIEW
+   ========================================================================= */
+
+const FILTERS = ['ALL', 'NL', 'UK', 'BE', 'OTHER'];
+const FILTER_LABEL = { ALL: 'All', NL: '🇳🇱 NL', UK: '🇬🇧 EN', BE: '🇧🇪 BE', OTHER: '🌍 Other' };
+
+function DiscoverView({ rallies, registrations, onRegister }) {
+  const [filter, setFilter] = useState('ALL');
+
+  const visible = useMemo(() => {
+    const list = filter === 'ALL' ? rallies : rallies.filter((r) => r.country === filter);
+    return [...list].sort((a, b) => a.date.localeCompare(b.date));
+  }, [rallies, filter]);
+
+  return (
+    <div className="fade-in">
+      <div className="px-4 pt-2 pb-3 flex gap-2 overflow-x-auto scrollbar-hide sticky top-[64px] bg-charcoal z-20">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`shrink-0 px-4 py-2 min-h-[44px] rounded-full text-sm font-semibold border transition-colors ${
+              filter === f ? 'bg-crimson border-crimson text-cream' : 'bg-panel border-white/10 text-silver'
+            }`}
+          >
+            {FILTER_LABEL[f]}
+          </button>
+        ))}
+      </div>
+
+      <div className="px-4 pb-6 grid grid-cols-1 gap-4">
+        {visible.length === 0 && (
+          <p className="text-silver-dim text-sm text-center py-12">No rallies in this region yet.</p>
+        )}
+        {visible.map((r, i) => (
+          <RallyCard
+            key={r.id}
+            rally={r}
+            index={i}
+            registered={registrations.some((reg) => reg.rallyId === r.id)}
+            onRegister={onRegister}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   GARAGE VIEW
+   ========================================================================= */
+
+function GarageView({ myRallies, onCancel, onGPX, onRoadbook }) {
+  const upcoming = useMemo(() => myRallies.filter(isUpcoming).sort((a, b) => a.date.localeCompare(b.date)), [myRallies]);
+  const completed = useMemo(() => myRallies.filter((r) => !isUpcoming(r)).sort((a, b) => b.date.localeCompare(a.date)), [myRallies]);
+
+  return (
+    <div className="px-4 pt-4 pb-6 fade-in">
+      <h2 className="font-serif text-2xl font-bold text-cream mb-1">My Garage</h2>
+      <p className="text-silver text-sm mb-6">Your registered rallies, in one place.</p>
+
+      {myRallies.length === 0 && (
+        <div className="text-center py-16">
+          <div className="text-4xl mb-3">🏎️</div>
+          <p className="text-silver text-sm">No registrations yet.<br/>Head to Discover to sign up for a rally.</p>
+        </div>
+      )}
+
+      {upcoming.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-xs uppercase tracking-wide text-racing-light font-bold mb-3">Upcoming Events</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {upcoming.map((r, i) => (
+              <RallyCard key={r.id} rally={r} index={i} garageMode onCancel={onCancel} onGPX={onGPX} onRoadbook={onRoadbook} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {completed.length > 0 && (
+        <div>
+          <h3 className="text-xs uppercase tracking-wide text-silver-dim font-bold mb-3">Completed Rallies (History)</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {completed.map((r, i) => (
+              <RallyCard key={r.id} rally={r} index={i} garageMode onCancel={onCancel} onGPX={onGPX} onRoadbook={onRoadbook} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
+   PROFILE VIEW
+   ========================================================================= */
+
+function ProfileView({ user, onLogout, registrationCount }) {
+  return (
+    <div className="px-4 pt-4 pb-6 fade-in">
+      <h2 className="font-serif text-2xl font-bold text-cream mb-6">Profile</h2>
+
+      <div className="bg-panel rounded-2xl border border-white/5 p-5 mb-4">
+        <div className="flex items-center gap-4 mb-5">
+          <div className="w-14 h-14 rounded-full bg-racing flex items-center justify-center text-xl font-serif font-bold text-cream shrink-0">
+            {(user.profile.name || user.email)[0].toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-cream font-semibold truncate">{user.profile.name || 'Rally Driver'}</p>
+            <p className="text-silver-dim text-sm truncate">{user.email}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-white/5 pt-4">
+          <div className="flex justify-between text-sm">
+            <span className="text-silver-dim">Classic Car</span>
+            <span className="text-cream font-medium text-right">{user.profile.carModel || '—'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-silver-dim">Year</span>
+            <span className="text-cream font-medium">{user.profile.carYear || '—'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-silver-dim">Registered Rallies</span>
+            <span className="text-cream font-medium">{registrationCount}</span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={onLogout}
+        className="w-full flex items-center justify-center gap-2 bg-panel border border-crimson/50 text-crimson-light hover:bg-crimson/10 rounded-lg py-3.5 min-h-[44px] font-semibold text-sm transition-colors"
+      >
+        {Icon.logout('w-4 h-4')} Log Out
+      </button>
+    </div>
+  );
+}
+
+/* =========================================================================
+   DASHBOARD SHELL (header + tabs + sticky bottom nav)
+   ========================================================================= */
+
+const TABS = [
+  { key: 'discover', label: 'Discover', icon: Icon.compass },
+  { key: 'garage', label: 'My Garage', icon: Icon.garage },
+  { key: 'profile', label: 'Profile', icon: Icon.user },
+];
+
+function Dashboard({ user, registrations, onRegister, onCancel, onLogout, toast, setToast }) {
+  const [tab, setTab] = useState('discover');
+  const [roadbookRally, setRoadbookRally] = useState(null);
+
+  const myRallies = useMemo(
+    () => registrations.map((reg) => RALLIES.find((r) => r.id === reg.rallyId)).filter(Boolean),
+    [registrations]
+  );
+
+  return (
+    <div className="min-h-screen pb-24">
+      <header className="sticky top-0 z-30 bg-charcoal/95 backdrop-blur border-b border-white/5 px-4 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🏁</span>
+          <span className="font-serif text-lg font-bold text-cream">Petrol Plotter</span>
+        </div>
+        <div className="text-right leading-tight">
+          <p className="text-xs text-silver-dim">Welcome back</p>
+          <p className="text-sm text-cream font-medium">{user.profile.name || user.email.split('@')[0]}</p>
+        </div>
+      </header>
+
+      {tab === 'discover' && <DiscoverView rallies={RALLIES} registrations={registrations} onRegister={onRegister} />}
+      {tab === 'garage' && <GarageView myRallies={myRallies} onCancel={onCancel} onGPX={downloadGPX} onRoadbook={setRoadbookRally} />}
+      {tab === 'profile' && <ProfileView user={user} onLogout={onLogout} registrationCount={myRallies.length} />}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-panel border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[56px] relative"
+          >
+            {tab === t.key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-crimson rounded-full"></span>}
+            <span className={tab === t.key ? 'text-crimson-light' : 'text-silver-dim'}>{t.icon('w-5 h-5')}</span>
+            <span className={`text-[10px] font-semibold ${tab === t.key ? 'text-cream' : 'text-silver-dim'}`}>{t.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <RoadbookModal rally={roadbookRally} onClose={() => setRoadbookRally(null)} />
+      <Toast message={toast} onDone={() => setToast('')} />
+    </div>
+  );
+}
+
+/* =========================================================================
+   SETUP REQUIRED SCREEN — shown instead of a cryptic Firebase error when
+   window.FIREBASE_CONFIG still has its placeholder values.
+   ========================================================================= */
+
+function SetupRequiredScreen() {
+  return (
+    <div className="min-h-screen flex flex-col justify-center px-6 py-10 fade-in">
+      <div className="max-w-sm w-full mx-auto text-center">
+        <div className="text-4xl mb-4">🔧</div>
+        <h1 className="font-serif text-2xl font-bold text-cream mb-3">Firebase setup required</h1>
+        <p className="text-silver text-sm mb-4">
+          This app needs a Firebase project to handle accounts and registrations.
+          Open this file and fill in the <span className="text-cream font-medium">window.FIREBASE_CONFIG</span> object
+          (near the top of &lt;body&gt;) with the config values from your Firebase project.
+        </p>
+        <p className="text-silver-dim text-xs">
+          Find them in the Firebase console under Project settings → General → Your apps.
+          Full setup steps were provided alongside this file.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   ROOT APP — owns auth state (Firebase Authentication) and the live
+   registrations list (Firestore). RALLIES itself stays static mock data —
+   swap it for the Google Sheet / scraper feed later without touching auth.
+   ========================================================================= */
+
+function App() {
+  const [currentUser, setCurrentUser] = useState(null); // { id, email, profile } | null
+  const [authLoading, setAuthLoading] = useState(true); // true until the first onAuthStateChanged fires
+  const [registrations, setRegistrations] = useState([]);
+  const [toast, setToast] = useState('');
+
+  // Auth session — Firebase persists this itself (IndexedDB), so it
+  // survives reloads with zero manual bookkeeping on our side.
+  useEffect(() => {
+    if (!window.__FIREBASE_CONFIGURED__) {
+      setAuthLoading(false);
+      return;
+    }
+    const unsubscribe = firebase.auth().onAuthStateChanged(
+      async (fbUser) => {
+        if (!fbUser) {
+          setCurrentUser(null);
+          setAuthLoading(false);
+          return;
+        }
+        let profile = { name: '', carModel: '', carYear: '' };
+        try {
+          const doc = await firebase.firestore().collection(USERS_COLLECTION).doc(fbUser.uid).get();
+          if (doc.exists) profile = doc.data();
+        } catch (e) {
+          console.error('Failed to load profile:', e);
+        }
+        setCurrentUser({ id: fbUser.uid, email: fbUser.email, profile });
+        setAuthLoading(false);
+      },
+      (error) => {
+        console.error('Auth state error:', error);
+        setAuthLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Live registrations for whoever is currently signed in. onSnapshot keeps
+  // this in sync in real time — e.g. registering on one device updates the
+  // Garage view on another without a manual refresh.
+  useEffect(() => {
+    if (!currentUser) {
+      setRegistrations([]);
+      return;
+    }
+    const unsubscribe = firebase.firestore()
+      .collection(REGISTRATIONS_COLLECTION)
+      .where('userId', '==', currentUser.id)
+      .onSnapshot(
+        (snap) => setRegistrations(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        (error) => console.error('Registrations listener error:', error)
+      );
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  async function login(email, password) {
+    try {
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: mapAuthError(e) };
+    }
+  }
+
+  async function signup(form) {
+    if (!form.email || !form.password) {
+      return { ok: false, error: 'Email and password are required.' };
+    }
+    try {
+      const cred = await firebase.auth().createUserWithEmailAndPassword(form.email.trim(), form.password);
+      const profile = { name: form.name.trim(), carModel: form.carModel.trim(), carYear: form.carYear.trim() };
+      await firebase.firestore().collection(USERS_COLLECTION).doc(cred.user.uid).set(profile);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: mapAuthError(e) };
+    }
+  }
+
+  function logout() {
+    firebase.auth().signOut().catch((e) => console.error('Sign out failed:', e));
+  }
+
+  const register = useCallback((rallyId) => {
+    if (!currentUser || registrations.some((r) => r.rallyId === rallyId)) return;
+    firebase.firestore().collection(REGISTRATIONS_COLLECTION).add({
+      userId: currentUser.id, rallyId, registeredAt: TODAY,
+    }).catch((e) => console.error('Register failed:', e));
+    const rally = RALLIES.find((r) => r.id === rallyId);
+    setToast(`You're registered for ${rally.title}`);
+  }, [currentUser, registrations]);
+
+  const cancelRegistration = useCallback((rallyId) => {
+    const reg = registrations.find((r) => r.rallyId === rallyId);
+    if (!reg) return;
+    firebase.firestore().collection(REGISTRATIONS_COLLECTION).doc(reg.id).delete()
+      .catch((e) => console.error('Cancel failed:', e));
+    setToast('Registration cancelled');
+  }, [registrations]);
+
+  if (!window.__FIREBASE_CONFIGURED__) {
+    return <SetupRequiredScreen />;
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="spinner"></span>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthScreen onLogin={login} onSignup={signup} />;
+  }
+
+  return (
+    <Dashboard
+      user={currentUser}
+      registrations={registrations}
+      onRegister={register}
+      onCancel={cancelRegistration}
+      onLogout={logout}
+      toast={toast}
+      setToast={setToast}
+    />
+  );
+}
+
+/* =========================================================================
+   ERROR BOUNDARY — catches render-time exceptions in the React tree.
+   Without this, React 18 silently unmounts the entire app on an uncaught
+   error, leaving a blank page. This shows the actual error instead.
+   ========================================================================= */
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error('Petrol Plotter crashed:', error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-6 text-center">
+          <div className="max-w-sm">
+            <div className="text-4xl mb-3">⚠️</div>
+            <h1 className="font-serif text-xl font-bold text-cream mb-2">Something went wrong</h1>
+            <p className="text-silver text-sm mb-3">{String(this.state.error.message || this.state.error)}</p>
+            <p className="text-silver-dim text-xs">Reload the page to try again. Open the browser console for full details.</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+
+<!-- Bootstrap: manually transforms the JSX source above with the classic
+     runtime forced (see comment on the #app-source tag), then executes it.
+     This runs after Babel Standalone has loaded (script order guarantees
+     that), reads the untouched source, and injects the compiled output as
+     a normal classic script — no "text/babel" auto-scan involved. -->
+<script>
+  (function () {
+    var source = document.getElementById('app-source').textContent;
+    var output = Babel.transform(source, {
+      presets: [['react', { runtime: 'classic', pragma: 'React.createElement', pragmaFrag: 'React.Fragment' }]],
+      filename: 'petrol-plotter-app.jsx',
+    }).code;
+    var script = document.createElement('script');
+    script.text = output;
+    document.body.appendChild(script);
+  })();
+</script>
+</body>
+</html>
