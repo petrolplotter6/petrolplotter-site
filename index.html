@@ -112,6 +112,23 @@
   .focus\:border-crimson:focus { border-color: rgb(139,0,0); outline: none; }
   .focus\:outline-none:focus { outline: none; }
 
+  /* ---------- antique gold accent (luxury pass) ---------- */
+  .text-gold { color: rgb(201,169,97); }
+  .bg-gold { background-color: rgb(201,169,97); }
+  .bg-gold\/10 { background-color: rgba(201,169,97,.1); }
+  .bg-gold\/15 { background-color: rgba(201,169,97,.15); }
+  .border-gold { border-color: rgb(201,169,97); }
+  .border-gold\/20 { border-color: rgba(201,169,97,.2); }
+  .border-gold\/30 { border-color: rgba(201,169,97,.3); }
+  .border-gold\/40 { border-color: rgba(201,169,97,.4); }
+  .border-gold\/50 { border-color: rgba(201,169,97,.5); }
+  .border-gold\/60 { border-color: rgba(201,169,97,.6); }
+  .hover\:border-gold:hover { border-color: rgb(201,169,97); }
+  .hover\:bg-gold\/10:hover { background-color: rgba(201,169,97,.1); }
+  .hover\:text-gold:hover { color: rgb(201,169,97); }
+  .focus\:border-gold:focus { border-color: rgb(201,169,97); outline: none; }
+  .tracking-widest { letter-spacing: .2em; }
+
   /* gradients (the three exact combinations used in the app) */
   .bg-gradient-to-br.from-racing\/90.to-racing-light\/40 { background-image: linear-gradient(to bottom right, rgba(11,70,39,.9), rgba(20,98,56,.4)); }
   .bg-gradient-to-br.from-crimson\/90.to-crimson-light\/30 { background-image: linear-gradient(to bottom right, rgba(139,0,0,.9), rgba(173,26,26,.3)); }
@@ -124,6 +141,7 @@
   .font-semibold { font-weight: 600; }
   .font-medium { font-weight: 500; }
   .text-\[10px\] { font-size: 10px; line-height: 1.4; }
+  .text-\[15px\] { font-size: 15px; line-height: 1.3; }
   .text-xs { font-size: .75rem; line-height: 1rem; }
   .text-sm { font-size: .875rem; line-height: 1.25rem; }
   .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
@@ -150,7 +168,9 @@
   .grid { display: grid; }
   .block { display: block; }
   .grid-cols-1 { grid-template-columns: repeat(1, minmax(0,1fr)); }
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .grid-cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .aspect-square { aspect-ratio: 1 / 1; }
   .flex-1 { flex: 1 1 0%; }
   .flex-col { flex-direction: column; }
   .items-center { align-items: center; }
@@ -187,6 +207,7 @@
   .w-3\.5 { width: .875rem; } .h-3\.5 { height: .875rem; }
   .w-4 { width: 1rem; } .h-4 { height: 1rem; }
   .w-5 { width: 1.25rem; } .h-5 { height: 1.25rem; }
+  .w-7 { width: 1.75rem; } .h-7 { height: 1.75rem; }
   .w-8 { width: 2rem; } .h-8 { height: 2rem; }
   .w-11 { width: 2.75rem; } .h-11 { height: 2.75rem; }
   .w-14 { width: 3.5rem; } .h-14 { height: 3.5rem; }
@@ -721,6 +742,59 @@ function VintageMotifs() {
 }
 
 /* =========================================================================
+   CREST — inline "PP" laurel-wreath monogram, the gold brand mark used
+   across the login screen and dashboard header in place of the flag emoji.
+   ========================================================================= */
+
+function Crest({ size = 44 }) {
+  return (
+    <svg viewBox="0 0 100 100" style={{ width: size, height: size, color: 'rgb(201,169,97)' }} fill="none">
+      <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+      {/* laurel sprigs */}
+      {[-1, 1].map((side) => (
+        <g key={side} transform={`translate(50,50) scale(${side},1) translate(-50,-50)`}>
+          <path
+            d="M22 62 C18 54 18 44 24 34 C27 29 31 25 35 22"
+            stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"
+          />
+          {[0, 1, 2, 3, 4].map((i) => {
+            const t = i / 4;
+            const x = 22 + t * 13, y = 62 - t * 28;
+            return (
+              <ellipse
+                key={i} cx={x} cy={y} rx="4.2" ry="2.1"
+                transform={`rotate(${-40 + t * 20} ${x} ${y})`}
+                fill="currentColor" opacity="0.85"
+              />
+            );
+          })}
+        </g>
+      ))}
+      {/* PP monogram */}
+      <text
+        x="50" y="60" textAnchor="middle"
+        fontFamily="Playfair Display, serif" fontWeight="700" fontSize="30"
+        fill="currentColor"
+      >PP</text>
+    </svg>
+  );
+}
+
+/* =========================================================================
+   HERO PHOTOGRAPHY — real, freely-licensed classic-car photography (Unsplash
+   License: free for commercial use, no attribution required) used behind
+   British Racing Green gradient overlays for the luxury hero sections.
+   ========================================================================= */
+
+const HERO_IMAGES = {
+  dashboard: 'https://images.unsplash.com/photo-1544340411-1616fe74ad47?w=1600&q=70&auto=format&fit=crop',
+  woodWheel: 'https://images.unsplash.com/photo-1757926331527-86b11a72b5a2?w=1600&q=70&auto=format&fit=crop',
+  grille: 'https://images.unsplash.com/photo-1719377058246-227c73041b7f?w=1600&q=70&auto=format&fit=crop',
+  mountainRoad: 'https://images.unsplash.com/photo-1689085383734-32c6d88221a7?w=1600&q=70&auto=format&fit=crop',
+};
+
+/* =========================================================================
    AUTH SCREEN
    ========================================================================= */
 
@@ -752,22 +826,34 @@ function AuthScreen({ onLogin, onSignup }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-10 fade-in relative" style={{ zIndex: 1 }}>
-      <VintageMotifs />
-      <div className="max-w-sm w-full mx-auto relative" style={{ zIndex: 1 }}>
-        <div className="text-center mb-10">
-          <div className="text-4xl mb-3">🏁</div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-cream">Petrol Plotter</h1>
-          <p className="text-silver text-sm mt-2">Classic rallies across NL · BE · EN</p>
+    <div className="min-h-screen fade-in relative" style={{ zIndex: 1, overflow: 'hidden' }}>
+      {/* Photographic hero — real classic-car dashboard, British Racing Green wash */}
+      <div className="relative w-full" style={{ height: '44vh', minHeight: 300 }}>
+        <img
+          src={HERO_IMAGES.dashboard} alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: 'saturate(0.9)' }}
+        />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,70,39,.5) 0%, rgba(18,18,18,.55) 55%, rgb(18,18,18) 100%)' }}></div>
+        <div className="absolute inset-0 flex flex-col items-center justify-end px-6 pb-8 text-center">
+          <Crest size={54} />
+          <h1 className="font-serif text-4xl font-bold tracking-tight text-gold mt-3">Petrol Plotter</h1>
+          <div style={{ width: 56, height: 1, background: 'rgba(201,169,97,.6)' }} className="my-3"></div>
+          <p className="text-xs tracking-widest uppercase" style={{ color: 'rgba(245,239,227,.75)' }}>Classic Rallies · NL · BE · EN</p>
         </div>
+      </div>
 
-        <div className="flex bg-panel rounded-xl p-1 mb-6 border border-white/5">
+      <div className="relative px-6 pt-8 pb-10" style={{ zIndex: 1 }}>
+        <VintageMotifs />
+        <div className="max-w-sm w-full mx-auto relative" style={{ zIndex: 1 }}>
+
+        <div className="flex bg-panel rounded-xl p-1 mb-6 border border-gold/30">
           {['login', 'signup'].map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => { setMode(m); setStatus('idle'); setErrorMsg(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize transition-colors min-h-[44px] ${mode === m ? 'bg-racing text-cream' : 'text-silver'}`}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize transition-colors min-h-[44px] ${mode === m ? 'bg-racing text-gold' : 'text-silver'}`}
             >
               {m === 'login' ? 'Log In' : 'Sign Up'}
             </button>
@@ -781,7 +867,7 @@ function AuthScreen({ onLogin, onSignup }) {
               type="email" required value={form.email}
               onChange={(e) => update('email', e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-gold min-h-[44px]"
             />
           </div>
           <div>
@@ -790,7 +876,7 @@ function AuthScreen({ onLogin, onSignup }) {
               type="password" required value={form.password}
               onChange={(e) => update('password', e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+              className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-gold min-h-[44px]"
             />
           </div>
 
@@ -801,17 +887,17 @@ function AuthScreen({ onLogin, onSignup }) {
                 <input
                   type="text" value={form.name} onChange={(e) => update('name', e.target.value)}
                   placeholder="Name"
-                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-gold min-h-[44px]"
                 />
                 <input
                   type="text" value={form.carModel} onChange={(e) => update('carModel', e.target.value)}
                   placeholder="Classic Car Model (e.g. Jaguar E-Type)"
-                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-gold min-h-[44px]"
                 />
                 <input
                   type="text" inputMode="numeric" value={form.carYear} onChange={(e) => update('carYear', e.target.value)}
                   placeholder="Year (e.g. 1966)"
-                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-crimson min-h-[44px]"
+                  className="w-full bg-panel border border-white/10 rounded-lg px-4 py-3 text-cream placeholder-silver-dim focus:outline-none focus:border-gold min-h-[44px]"
                 />
               </div>
             </div>
@@ -835,7 +921,57 @@ function AuthScreen({ onLogin, onSignup }) {
         <p className="text-center text-xs text-silver-dim mt-6">
           New here? Switch to Sign Up above to create your own account.
         </p>
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   RALLY SHOWCASE CARD — square, image-forward tile used in the Discover
+   grid. High-caliber photography first, minimal text, gold accents.
+   ========================================================================= */
+
+function RallyShowcaseCard({ rally, index, registered, onRegister }) {
+  const src = rallySource(rally);
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasImage = !!rally.imageUrl && !imgFailed;
+  const accent = index % 2 === 0 ? 'from-racing/90 to-racing-light/40' : 'from-crimson/90 to-crimson-light/30';
+
+  return (
+    <div className="bg-panel rounded-xl overflow-hidden border border-gold/20 shadow-card fade-in">
+      <div className={`relative aspect-square bg-gradient-to-br ${accent} ${hasImage ? '' : 'checker-pattern'}`}>
+        {hasImage && (
+          <img
+            src={rally.imageUrl} alt={rally.title}
+            onError={() => setImgFailed(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(0,0,0,.8) 100%)' }}></div>
+        <div className="absolute top-2 left-2"><FlagBadge country={rally.country} /></div>
+        {registered && (
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gold flex items-center justify-center" style={{ color: 'rgb(18,18,18)' }}>
+            {Icon.check('w-4 h-4')}
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <h3 className="font-serif text-[15px] font-bold text-cream leading-tight">{rally.title}</h3>
+          <p className="text-[10px] uppercase tracking-wide mt-1" style={{ color: 'rgba(201,169,97,.9)' }}>
+            {formatDate(rally.date)}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={() => onRegister(rally.id)}
+        disabled={registered}
+        className={`w-full py-2.5 min-h-[44px] text-xs font-semibold transition-all active:scale-[0.98] ${
+          registered ? 'bg-racing/30 text-gold' : 'bg-transparent text-gold hover:bg-gold/10 border-t border-gold/20'
+        }`}
+      >
+        {registered ? 'Registered ✓' : 'Register'}
+      </button>
     </div>
   );
 }
@@ -959,9 +1095,9 @@ function RoadbookModal({ rally, onClose }) {
         className="bg-panel w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto border border-white/10 shadow-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-panel px-5 pt-5 pb-4 border-b border-white/5 flex items-start justify-between">
+        <div className="sticky top-0 bg-panel px-5 pt-5 pb-4 border-b border-gold/20 flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-silver-dim mb-1">Digital Roadbook</p>
+            <p className="text-xs uppercase tracking-wide text-gold mb-1">Digital Roadbook</p>
             <h3 className="font-serif text-xl font-bold text-cream">{rally.title}</h3>
           </div>
           <button onClick={onClose} className="w-11 h-11 flex items-center justify-center text-silver hover:text-cream -mr-2 -mt-1">
@@ -1007,7 +1143,16 @@ function DiscoverView({ rallies, registrations, onRegister }) {
 
   return (
     <div className="fade-in">
-      <div className="px-4 pt-2 pb-3 flex gap-2 overflow-x-auto scrollbar-hide sticky top-[64px] bg-charcoal z-20">
+      <div className="relative" style={{ height: 168 }}>
+        <img src={HERO_IMAGES.mountainRoad} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,70,39,.35) 0%, rgba(18,18,18,.35) 60%, rgb(18,18,18) 100%)' }}></div>
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          <p className="text-[10px] uppercase tracking-widest text-gold mb-1">Elegance · Performance · Adventure</p>
+          <h2 className="font-serif text-2xl font-bold text-cream leading-tight">Plot the Road. Live the Legend.</h2>
+        </div>
+      </div>
+
+      <div className="px-4 pt-3 pb-3 flex gap-2 overflow-x-auto scrollbar-hide sticky top-[64px] bg-charcoal z-20">
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -1021,12 +1166,12 @@ function DiscoverView({ rallies, registrations, onRegister }) {
         ))}
       </div>
 
-      <div className="px-4 pb-6 grid grid-cols-1 gap-4">
+      <div className="px-4 pb-6 grid grid-cols-2 gap-3">
         {visible.length === 0 && (
-          <p className="text-silver-dim text-sm text-center py-12">No rallies in this region yet.</p>
+          <p className="text-silver-dim text-sm text-center py-12" style={{ gridColumn: '1 / -1' }}>No rallies in this region yet.</p>
         )}
         {visible.map((r, i) => (
-          <RallyCard
+          <RallyShowcaseCard
             key={r.id}
             rally={r}
             index={i}
@@ -1048,8 +1193,15 @@ function GarageView({ myRallies, onCancel, onGPX, onRoadbook }) {
   const completed = useMemo(() => myRallies.filter((r) => !isUpcoming(r)).sort((a, b) => b.date.localeCompare(a.date)), [myRallies]);
 
   return (
-    <div className="px-4 pt-4 pb-6 fade-in">
-      <h2 className="font-serif text-2xl font-bold text-cream mb-1">My Garage</h2>
+    <div className="pb-6 fade-in">
+      <div className="relative" style={{ height: 120 }}>
+        <img src={HERO_IMAGES.woodWheel} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 35%' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,70,39,.45) 0%, rgba(18,18,18,.55) 65%, rgb(18,18,18) 100%)' }}></div>
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-2">
+          <h2 className="font-serif text-2xl font-bold text-gold leading-tight">My Garage</h2>
+        </div>
+      </div>
+      <div className="px-4 pt-3">
       <p className="text-silver text-sm mb-6">Your registered rallies, in one place.</p>
 
       {myRallies.length === 0 && (
@@ -1061,7 +1213,7 @@ function GarageView({ myRallies, onCancel, onGPX, onRoadbook }) {
 
       {upcoming.length > 0 && (
         <div className="mb-8">
-          <h3 className="text-xs uppercase tracking-wide text-racing-light font-bold mb-3">Upcoming Events</h3>
+          <h3 className="text-xs uppercase tracking-wide text-gold font-bold mb-3">Upcoming Events</h3>
           <div className="grid grid-cols-1 gap-4">
             {upcoming.map((r, i) => (
               <RallyCard key={r.id} rally={r} index={i} garageMode onCancel={onCancel} onGPX={onGPX} onRoadbook={onRoadbook} />
@@ -1080,6 +1232,7 @@ function GarageView({ myRallies, onCancel, onGPX, onRoadbook }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1090,12 +1243,19 @@ function GarageView({ myRallies, onCancel, onGPX, onRoadbook }) {
 
 function ProfileView({ user, onLogout, registrationCount }) {
   return (
-    <div className="px-4 pt-4 pb-6 fade-in">
-      <h2 className="font-serif text-2xl font-bold text-cream mb-6">Profile</h2>
+    <div className="pb-6 fade-in">
+      <div className="relative" style={{ height: 120 }}>
+        <img src={HERO_IMAGES.grille} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,70,39,.45) 0%, rgba(18,18,18,.55) 65%, rgb(18,18,18) 100%)' }}></div>
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-2">
+          <h2 className="font-serif text-2xl font-bold text-gold leading-tight">Profile</h2>
+        </div>
+      </div>
+      <div className="px-4 pt-4">
 
-      <div className="bg-panel rounded-2xl border border-white/5 p-5 mb-4">
+      <div className="bg-panel rounded-2xl border border-gold/20 p-5 mb-4">
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-full bg-racing flex items-center justify-center text-xl font-serif font-bold text-cream shrink-0">
+          <div className="w-14 h-14 rounded-full bg-racing border border-gold/50 flex items-center justify-center text-xl font-serif font-bold text-gold shrink-0">
             {(user.profile.name || user.email)[0].toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -1126,6 +1286,7 @@ function ProfileView({ user, onLogout, registrationCount }) {
       >
         {Icon.logout('w-4 h-4')} Log Out
       </button>
+      </div>
     </div>
   );
 }
@@ -1152,10 +1313,10 @@ function Dashboard({ user, rallies, registrations, onRegister, onCancel, onLogou
   return (
     <div className="min-h-screen pb-24 relative" style={{ zIndex: 1 }}>
       <VintageMotifs />
-      <header className="sticky top-0 z-30 bg-charcoal/95 backdrop-blur border-b border-white/5 px-4 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-30 bg-charcoal/95 backdrop-blur border-b border-gold/20 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🏁</span>
-          <span className="font-serif text-lg font-bold text-cream">Petrol Plotter</span>
+          <Crest size={28} />
+          <span className="font-serif text-lg font-bold text-gold">Petrol Plotter</span>
         </div>
         <div className="text-right leading-tight">
           <p className="text-xs text-silver-dim">Welcome back</p>
@@ -1167,15 +1328,15 @@ function Dashboard({ user, rallies, registrations, onRegister, onCancel, onLogou
       {tab === 'garage' && <GarageView myRallies={myRallies} onCancel={onCancel} onGPX={downloadGPX} onRoadbook={setRoadbookRally} />}
       {tab === 'profile' && <ProfileView user={user} onLogout={onLogout} registrationCount={myRallies.length} />}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-panel border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-panel border-t border-gold/20 flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[56px] relative"
           >
-            {tab === t.key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-crimson rounded-full"></span>}
-            <span className={tab === t.key ? 'text-crimson-light' : 'text-silver-dim'}>{t.icon('w-5 h-5')}</span>
+            {tab === t.key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold rounded-full"></span>}
+            <span className={tab === t.key ? 'text-gold' : 'text-silver-dim'}>{t.icon('w-5 h-5')}</span>
             <span className={`text-[10px] font-semibold ${tab === t.key ? 'text-cream' : 'text-silver-dim'}`}>{t.label}</span>
           </button>
         ))}
