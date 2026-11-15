@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>De Sinterklaas Kieswijzer voor Gosling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#b3122e; --red-dark:#7d0b1f; --gold:#d9a521; --cream:#fbf5ea;
+    --ink:#2a1a14; --muted:#7a6a60; --card:#ffffff; --line:#eadfcf;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);
+    background:var(--cream);
+    background-image:radial-gradient(circle at 10% 10%,rgba(217,165,33,.12) 0 6px,transparent 7px),
+                     radial-gradient(circle at 60% 40%,rgba(179,18,46,.08) 0 5px,transparent 6px);
+    background-size:60px 60px,80px 80px;min-height:100vh}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 60px}
+  header{text-align:center;margin-bottom:22px}
+  .mijter{font-size:44px;line-height:1}
+  h1{font-family:Fraunces,serif;font-weight:800;color:var(--red);font-size:clamp(28px,5vw,42px);margin:6px 0 4px}
+  .sub{color:var(--muted);margin:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;
+    box-shadow:0 10px 30px rgba(125,11,31,.08)}
+  .btn{appearance:none;border:0;border-radius:999px;background:var(--red);color:#fff;font:600 16px Inter,sans-serif;
+    padding:13px 26px;cursor:pointer;transition:transform .1s,background .2s}
+  .btn:hover{background:var(--red-dark)} .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent;color:var(--red);border:2px solid var(--red)}
+  .progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:18px}
+  .progress span{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--gold));transition:width .3s}
+  .qnum{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .qtext{font-family:Fraunces,serif;font-size:clamp(21px,3.6vw,27px);margin:8px 0 20px;line-height:1.25}
+  .answers{display:grid;gap:10px}
+  .ans{text-align:left;border:2px solid var(--line);background:#fffdf8;border-radius:14px;padding:14px 16px;
+    font:500 16px Inter,sans-serif;color:var(--ink);cursor:pointer;display:flex;gap:12px;align-items:flex-start;transition:border-color .15s,background .15s}
+  .ans:hover{border-color:var(--gold);background:#fff7e2}
+  .ans b{flex:none;width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-size:14px}
+  .nav{display:flex;justify-content:space-between;margin-top:18px}
+  .link{background:none;border:0;color:var(--muted);cursor:pointer;font:500 14px Inter,sans-serif;text-decoration:underline}
+  .winner{text-align:center}
+  .winner .label{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px}
+  .winner .party{font-family:Fraunces,serif;font-weight:800;font-size:clamp(34px,7vw,54px);margin:4px 0 2px}
+  .poem{font-family:Fraunces,serif;font-size:18px;line-height:1.55;background:#fff7e2;border-left:4px solid var(--gold);
+    padding:16px 20px;border-radius:10px;margin:18px auto 0;text-align:left;max-width:560px;white-space:pre-line}
+  .sig{font-size:14px;color:var(--muted);margin-top:8px;text-align:right;max-width:560px;margin-left:auto;margin-right:auto}
+  h2{font-family:Fraunces,serif;color:var(--red);margin:30px 0 6px;font-size:24px}
+  .note{color:var(--muted);font-size:14px;margin:0 0 14px}
+  svg{width:100%;height:auto;display:block}
+  .bars{display:grid;gap:7px;margin-top:8px}
+  .bar{display:grid;grid-template-columns:110px 1fr 44px;align-items:center;gap:10px;font-size:14px}
+  .bar .track{height:12px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar .fill{height:100%;border-radius:99px}
+  .bar .pct{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .center{text-align:center} .mt{margin-top:24px}
+  .intro p{line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mijter" aria-hidden="true">🎁</div>
+    <h1>De Sinterklaas Kieswijzer</h1>
+    <p class="sub">Speciaal samengesteld door de Sint voor Gosling</p>
+  </header>
+
+  <main id="app" class="card"></main>
+</div>
+
+<script>
+const PARTIES = {
+  PRO:   {name:"PRO (GL-PvdA)", color:"#c8102e", x:-7, y:-6.5},
+  SP:    {name:"SP",            color:"#ee2e24", x:-8.5, y:0.5},
+  PvdD:  {name:"PvdD",          color:"#00733e", x:-6, y:-8},
+  Volt:  {name:"Volt",          color:"#562883", x:-2, y:-8.5},
+  D66:   {name:"D66",           color:"#00a960", x:1, y:-7},
+  CU:    {name:"ChristenUnie",  color:"#00a5e8", x:-2.5, y:4.5},
+  "50PLUS":{name:"50PLUS",      color:"#92278f", x:-3, y:2.5},
+  CDA:   {name:"CDA",           color:"#007b5f", x:2, y:3},
+  VVD:   {name:"VVD",           color:"#ff7f0e", x:6.5, y:0.5},
+  BBB:   {name:"BBB",           color:"#94c11f", x:2, y:5.5},
+  PVV:   {name:"PVV",           color:"#0b3d91", x:-1, y:8},
+  JA21:  {name:"JA21",          color:"#1b2a4a", x:6, y:6},
+  SGP:   {name:"SGP",           color:"#e95d0f", x:4, y:9},
+  FVD:   {name:"FVD",           color:"#841818", x:5.5, y:8.5}
+};
+
+const QUESTIONS = [
+  {q:"Sinterklaas komt aan met de stoomboot. Jouw standpunt?", a:[
+    ["De boot moet elektrisch en de pakjes gaan verder per bakfiets","PRO"],
+    ["Prima, als de belasting op cadeautjes maar omlaag gaat","VVD"],
+    ["Alleen als de boot niet op zondag vaart","SGP"],
+    ["Eén Europese pakjesvloot, met één Sint voor alle 27 lidstaten","Volt"]]},
+  {q:"Wat stop je in je schoen?", a:[
+    ["Een wortel voor het paard, wel van een Nederlandse boer","BBB"],
+    ["Een chocoladeletter van havermelk","PvdD"],
+    ["Een tomaat","SP"],
+    ["Je pensioenoverzicht","50PLUS"]]},
+  {q:"Het paard moet het dak op. Hoe regel je dat?", a:[
+    ["Investeren in onderwijs, dan leert het paard vanzelf klimmen","D66"],
+    ["Gewoon doen, met gezond verstand en zonder vergunning","JA21"],
+    ["Met een stevig touw en een schietgebedje","CU"],
+    ["Helemaal niet, het paard heeft ook rechten","PvdD"]]},
+  {q:"Wat staat er over jou in het Grote Boek?", a:[
+    ["“Was het hele jaar fatsoenlijk en hielp de buurvrouw”","CDA"],
+    ["“Vindt dat Sint al met 65 met pensioen mag”","PVV"],
+    ["“Hield een toespraak met een uil op zijn schouder”","FVD"],
+    ["“Heeft het Grote Boek gedigitaliseerd”","D66"]]},
+  {q:"Hoe verdeel je de pepernoten?", a:[
+    ["Eerlijk: wie de grootste zak heeft, deelt het meest","PRO"],
+    ["Wie hard strooit, krijgt er meer","VVD"],
+    ["Ze moeten in de eerste plaats goedkoper, dus de btw eraf","PVV"],
+    ["Samen delen in de buurt, gezellig met z’n allen","CDA"]]},
+  {q:"Op welke datum moet pakjesavond vallen?", a:[
+    ["Gewoon op 5 december, niet zeuren","JA21"],
+    ["Op dezelfde dag in heel Europa","Volt"],
+    ["Op elke dag behalve zondag","SGP"],
+    ["Op de dag dat de AOW binnenkomt","50PLUS"]]},
+  {q:"Je mag één wet invoeren. Welke?", a:[
+    ["Op elke schoorsteen een windmolentje","PRO"],
+    ["Een kleine kerncentrale onder elke open haard","VVD"],
+    ["Gratis zorg, ook voor de zere knieën van Sint","SP"],
+    ["Koeien krijgen spreekrecht in de gemeenteraad","BBB"]]},
+  {q:"Op pakjesavond wordt er gedebatteerd. Wat doe jij?", a:[
+    ["Je citeert Latijn tot het dessert","FVD"],
+    ["Je roept bij elk voorstel “Het kan wel!”","D66"],
+    ["Je zorgt dat iedereen thee heeft en aan het woord komt","CU"],
+    ["Je wilt het eigenlijk alleen over de boodschappen hebben","PVV"]]},
+  {q:"Welk cadeau geef je jezelf?", a:[
+    ["Een Interrail-pas","Volt"],
+    ["Een trekker met kerstverlichting","BBB"],
+    ["Een fijne leunstoel en een kortingspas","50PLUS"],
+    ["Een moestuin zonder slakkenkorrels","PvdD"]]},
+  {q:"Welk rijmpje past bij jouw droom?", a:[
+    ["“Minder regels, meer verstand, dat wens ik voor ons land”","JA21"],
+    ["“Zorg voor elkaar, dat is pas echt Sinterklaas-waar”","CU"],
+    ["“Normen, waarden en een goed fatsoen, daar kan Sint wat mee doen”","CDA"],
+    ["“Weg met Brussel en de euro, dan ben ik pas echt pro”","FVD"]]}
+];
+
+const POEMS = {
+  PRO:"Gosling, je stemt PRO, dat is nu wel klaar:\neen windmolen op je dak en de huur bevroren voor een jaar.\nSint komt voortaan in de bakfiets naar je toe,\nal wordt Piet van al dat trappen wel een beetje moe.",
+  VVD:"Gosling kiest de VVD, dat zag de Sint al lang,\nvoor elke belastingverhoging ben jij een beetje bang.\nJe pepernoten heb je eerlijk zelf verdiend,\nmaar die kerncentrale in je haard? Daar komt geen vergunning voor, vriend.",
+  D66:"Bij elk plan roep jij meteen: “Het kan wel!”\nDus D66 wint bij jou dit Sinterklaasspel.\nHet Grote Boek staat nu in de cloud, dat is fijn,\nals Sint nu nog wist wat zijn wachtwoord moest zijn.",
+  PVV:"Gosling wil goedkopere boodschappen en de btw eraf,\nen Sint met 65 met pensioen, dat vind jij niet laf.\nDus de PVV wint bij jou met vlag en wimpel,\nal vindt Sint die pensioenleeftijd voor zichzelf wel érg simpel.",
+  CDA:"Fatsoen, normen, waarden en de buurvrouw helpen bij het hek,\nhet CDA past jou als een warme sjaal om je nek.\nSint ziet je al als voorzitter van de buurtvereniging zijn,\nmet koffie, een notulist en een agenda van tien kantjes – fijn!",
+  JA21:"Minder regels, meer verstand, gewoon doen en niet zeuren,\nbij JA21 laat jij je stem dit jaar gebeuren.\nSint heeft het paard dus zonder vergunning op het dak gezet,\nhopelijk heeft de gemeente daar niet op gelet.",
+  FVD:"Gosling, je citeert Latijn tot aan het dessert,\nFVD is de partij die jouw stem wel waard is, hè.\nSint zag je laatst nog met een uil op je schouder staan,\nmaar die uil wil nu toch echt weer naar huis toe gaan.",
+  BBB:"Een trekker met lampjes en een koe in de raad,\nde BBB is waar jouw hart voor slaat.\nSint brengt een wortel van een boer uit de buurt,\nen het paard vraagt al ongeduldig hoe lang het nog duurt.",
+  SP:"Gratis zorg, ook voor de knieën van de Sint,\nbij de SP is waar Gosling zijn stem vindt.\nJe schoen zat vol tomaten, wat een rood feest,\nSint maakte er soep van voor Piet en het paard – en het beest.",
+  PvdD:"Een letter van havermelk, een paard dat zijn rechten kent,\nhet is duidelijk dat jij een PvdD-stemmer bent.\nSint komt dit jaar dus lopend, het paard heeft vrij,\nen de slakken in je moestuin zijn daar heel erg blij.",
+  CU:"Thee voor iedereen en een schietgebedje bij het touw,\nde ChristenUnie, Gosling, die past echt bij jou.\nSint ziet hoe jij voor iedereen klaarstaat,\nzelfs voor Piet, als die weer eens te laat de schoorsteen in gaat.",
+  SGP:"Nooit pakjes op zondag, dat is jouw devies,\nde SGP wint bij jou, zonder enige crisis.\nSint komt dus keurig op een doordeweekse dag aan,\nen laat zijn stoomboot zondag rustig in de haven staan.",
+  Volt:"Eén Sint voor heel Europa, met een Interrail-pas,\nbij Volt, Gosling, ben jij helemaal in je sas.\nSint moet nu wel langs alle 27 landen tegelijk,\ndus je cadeautje is wat klein – maar je bent Europees rijk.",
+  "50PLUS":"Een leunstoel, een kortingspas en je pensioen in je schoen,\n50PLUS heeft bij jou dus het meeste te doen.\nSint snapt het wel, hij is zelf ook al wat ouder,\ndus hij brengt een warm kussentje mee voor je schouder."
+};
+
+const app = document.getElementById('app');
+let step = -1, picks = [];
+
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
+function render(){
+  if(step<0) return renderIntro();
+  if(step>=QUESTIONS.length) return renderResult();
+  const Q = QUESTIONS[step];
+  app.innerHTML = `
+    <div class="progress"><span style="width:${(step/QUESTIONS.length)*100}%"></span></div>
+    <div class="qnum">Vraag ${step+1} van ${QUESTIONS.length}</div>
+    <div class="qtext">${esc(Q.q)}</div>
+    <div class="answers">${Q.a.map((a,i)=>`<button class="ans" data-i="${i}"><b>${'ABCD'[i]}</b><span>${esc(a[0])}</span></button>`).join('')}</div>
+    <div class="nav">${step>0?'<button class="link" id="back">← Vorige vraag</button>':'<span></span>'}<span></span></div>`;
+  app.querySelectorAll('.ans').forEach(b=>b.onclick=()=>{picks[step]=Q.a[+b.dataset.i][1]; step++; render(); window.scrollTo({top:0,behavior:'smooth'})});
+  const back=document.getElementById('back'); if(back) back.onclick=()=>{step--; render()};
+}
+
+function renderIntro(){
+  app.innerHTML = `<div class="intro center">
+    <div class="poem" style="margin-top:0">Lieve Gosling, de Sint weet het al lang:
+voor geen enkel debat ben jij ooit bang.
+Je volgt elke motie, elk Kamerdebat,
+en van iedere formatie weet jij wel wat.
+
+Maar welke partij jij écht kiest in het hokje,
+dat bleef voor de Sint een raadselig brokje.
+Daarom bedacht hij, met Piet aan zijn zij,
+een gloednieuwe kieswijzer, speciaal voor jou erbij.
+
+Tien vragen, tien antwoorden, eerlijk en snel,
+dan weet de Sint het precies – en jij straks ook wel.
+Dus pak je muis of je duim erbij,
+en klik je een weg naar jouw favoriete partij!</div>
+    <div class="sig">— Sint &amp; Piet</div>
+    <p class="note mt">Let op: deze kieswijzer is nergens op gebaseerd,<br>behalve op wat de Sint over jou heeft geleerd.</p>
+    <button class="btn mt" id="start">Start de kieswijzer</button></div>`;
+  document.getElementById('start').onclick=()=>{step=0;picks=[];render()};
+}
+
+function renderResult(){
+  const score={}; Object.keys(PARTIES).forEach(k=>score[k]=0);
+  picks.forEach(p=>score[p]++);
+  const gx = picks.reduce((s,p)=>s+PARTIES[p].x,0)/picks.length;
+  const gy = picks.reduce((s,p)=>s+PARTIES[p].y,0)/picks.length;
+  const dist=k=>Math.hypot(PARTIES[k].x-gx,PARTIES[k].y-gy);
+  const ranked=Object.keys(PARTIES).sort((a,b)=>score[b]-score[a]||dist(a)-dist(b));
+  const win=ranked[0], W=PARTIES[win];
+
+  app.innerHTML = `
+    <div class="winner">
+      <div class="label">De Sint heeft gesproken. Jouw stem gaat naar…</div>
+      <div class="party" style="color:${W.color}">${W.name}</div>
+      <div class="note">${score[win]*10}% overeenkomst</div>
+      <div class="poem">${esc(POEMS[win])}</div>
+      <div class="sig">— Sint &amp; Piet</div>
+    </div>
+
+    <h2>Het Sinterklaas Kieskompas</h2>
+    <p class="note">Waar jij staat ten opzichte van de partijen. De posities van de partijen zijn een indicatie, met een knipoog.</p>
+    ${chart(gx,gy,win)}
+
+    <h2>Overeenkomst per partij</h2>
+    <div class="bars">${ranked.map(k=>`<div class="bar"><span>${esc(PARTIES[k].name)}</span>
+      <div class="track"><div class="fill" style="width:${score[k]*10}%;background:${PARTIES[k].color}"></div></div>
+      <span class="pct">${score[k]*10}%</span></div>`).join('')}</div>
+
+    <div class="center mt"><button class="btn ghost" id="again">Nog een keer</button></div>`;
+  document.getElementById('again').onclick=()=>{step=-1;picks=[];render()};
+}
+
+function chart(gx,gy,win){
+  const S=520, pad=56, inner=S-pad*2;
+  const px=x=>pad+((x+10)/20)*inner, py=y=>pad+((y+10)/20)*inner; // conservatief boven? -> progressief boven
+  // y-as: progressief boven, conservatief onder? Kieskompas: progressief boven.
+  const PY=y=>pad+((-y+10)/20)*inner; // y>0 conservatief -> onder... flip below
+  const cy=y=>pad+((y+10)/20)*inner;  // progressief (neg) boven, conservatief (pos) onder
+  let s=`<svg viewBox="0 0 ${S} ${S}" role="img" aria-label="Kieskompas met partijen en de positie van Gosling">
+  <rect x="${pad}" y="${pad}" width="${inner/2}" height="${inner/2}" fill="#fdecef"/>
+  <rect x="${pad+inner/2}" y="${pad}" width="${inner/2}" height="${inner/2}" fill="#eef4fb"/>
+  <rect x="${pad}" y="${pad+inner/2}" width="${inner/2}" height="${inner/2}" fill="#f6f0e4"/>
+  <rect x="${pad+inner/2}" y="${pad+inner/2}" width="${inner/2}" height="${inner/2}" fill="#eef1f6"/>
+  <rect x="${pad}" y="${pad}" width="${inner}" height="${inner}" fill="none" stroke="#d8cbb8"/>
+  <line x1="${pad}" y1="${S/2}" x2="${S-pad}" y2="${S/2}" stroke="#b9a991" stroke-width="1.5"/>
+  <line x1="${S/2}" y1="${pad}" x2="${S/2}" y2="${S-pad}" stroke="#b9a991" stroke-width="1.5"/>
+  <text x="${pad-8}" y="${S/2+4}" text-anchor="end" font-size="13" font-weight="600" fill="#7a6a60" transform="rotate(-90 ${pad-14} ${S/2})" dx="30">Links</text>
+  <text x="${S/2}" y="${S-pad+30}" text-anchor="middle" font-size="12" fill="#7a6a60">sociaal-economisch</text>
+  <text x="${pad+4}" y="${S-pad+18}" font-size="13" font-weight="600" fill="#7a6a60">← Links</text>
+  <text x="${S-pad-4}" y="${S-pad+18}" text-anchor="end" font-size="13" font-weight="600" fill="#7a6a60">Rechts →</text>
+  <text x="${S/2}" y="${pad-12}" text-anchor="middle" font-size="13" font-weight="600" fill="#7a6a60">↑ Progressief</text>
+  <text x="${S/2}" y="${S-pad+48}" text-anchor="middle" font-size="13" font-weight="600" fill="#7a6a60">↓ Conservatief</text>`;
+  // remove the stray rotated "Links" label by not using it
+  s=s.replace(/<text[^>]*rotate\(-90[^<]*Links<\/text>/,'');
+  for(const k in PARTIES){
+    const P=PARTIES[k], x=px(P.x), y=cy(P.y), isW=k===win;
+    s+=`<circle cx="${x}" cy="${y}" r="${isW?8:6}" fill="${P.color}" stroke="#fff" stroke-width="2"/>
+        <text x="${x+10}" y="${y+4}" font-size="${isW?13:12}" font-weight="${isW?700:500}" fill="#2a1a14">${esc(P.name.replace(' (GL-PvdA)',''))}</text>`;
+  }
+  const X=px(gx), Y=cy(gy);
+  s+=`<g><circle cx="${X}" cy="${Y}" r="15" fill="#d9a521" opacity=".25"/>
+      <circle cx="${X}" cy="${Y}" r="9" fill="#d9a521" stroke="#7d0b1f" stroke-width="2.5"/>
+      <rect x="${X-34}" y="${Y-38}" width="68" height="22" rx="11" fill="#7d0b1f"/>
+      <text x="${X}" y="${Y-23}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Gosling</text></g></svg>`;
+  return s;
+}
+
+render();
+</script>
+</body>
+</html>
