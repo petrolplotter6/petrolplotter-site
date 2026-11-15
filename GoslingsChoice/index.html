@@ -177,9 +177,22 @@ function render(){
 
 function renderIntro(){
   app.innerHTML = `<div class="intro center">
-    <p style="font-family:Fraunces,serif;font-size:20px">Lieve Gosling,</p>
-    <p>De Sint weet dat jij de politiek op de voet volgt. Daarom heeft hij, samen met zijn beste Pieten, een gloednieuwe kieswijzer ontwikkeld. Tien vragen, tien eerlijke antwoorden – en dan weet de Sint eindelijk op welke partij jij écht stemt.</p>
-    <p class="note">Let op: deze kieswijzer is volledig onbetrouwbaar en uitsluitend bedoeld voor pakjesavond.</p>
+    <div class="poem" style="margin-top:0">Lieve Gosling, de Sint weet het al lang:
+voor geen enkel debat ben jij ooit bang.
+Je volgt elke motie, elk Kamerdebat,
+en van iedere formatie weet jij wel wat.
+
+Maar welke partij jij écht kiest in het hokje,
+dat bleef voor de Sint een raadselig brokje.
+Daarom bedacht hij, met Piet aan zijn zij,
+een gloednieuwe kieswijzer, speciaal voor jou erbij.
+
+Tien vragen, tien antwoorden, eerlijk en snel,
+dan weet de Sint het precies – en jij straks ook wel.
+Dus pak je muis of je duim erbij,
+en klik je een weg naar jouw favoriete partij!</div>
+    <div class="sig">— Sint &amp; Piet</div>
+    <p class="note mt">Let op: deze kieswijzer is nergens op gebaseerd,<br>behalve op wat de Sint over jou heeft geleerd.</p>
     <button class="btn mt" id="start">Start de kieswijzer</button></div>`;
   document.getElementById('start').onclick=()=>{step=0;picks=[];render()};
 }
